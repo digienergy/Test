@@ -2,6 +2,7 @@ import schedule
 import logging
 import time
 import os
+from dotenv import load_dotenv
 import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -34,7 +35,9 @@ logger.addHandler(handler)
 
 
 # 資料庫連接設置
-DATABASE_URL = "postgresql://postgres:Apollore100@35.221.134.2:5432/solar_data"
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 

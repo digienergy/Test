@@ -700,3 +700,23 @@
 2024-11-25 11:31:33 - INFO - scheduled_energy_summary started.
 2024-11-25 11:31:33 - INFO - Inserting record into EnergySummary
 2024-11-25 11:31:33 - INFO - scheduled_energy_summary end
+2024-11-25 11:38:22 - INFO - Scheduler started.
+2024-11-25 11:39:52 - INFO - Scheduler started.
+2024-11-25 11:40:52 - INFO - scheduled_equipment started.
+2024-11-25 11:40:53 - INFO - Inserting into the equipment table
+2024-11-25 11:40:53 - INFO - scheduled_equipment end
+2024-11-25 11:40:53 - INFO - scheduled_energy_summary started.
+2024-11-25 11:40:53 - INFO - Inserting record into EnergySummary
+2024-11-25 11:40:53 - INFO - scheduled_energy_summary end
+2024-11-25 11:41:53 - INFO - scheduled_equipment started.
+2024-11-25 11:41:53 - INFO - Inserting into the equipment table
+2024-11-25 11:41:53 - INFO - scheduled_equipment end
+2024-11-25 11:41:53 - INFO - scheduled_energy_summary started.
+2024-11-25 11:41:54 - INFO - Inserting record into EnergySummary
+2024-11-25 11:41:54 - INFO - scheduled_energy_summary end
+2024-11-25 11:42:54 - INFO - scheduled_equipment started.
+2024-11-25 11:42:54 - INFO - Inserting into the equipment table
+2024-11-25 11:42:54 - INFO - scheduled_equipment end
+2024-11-25 11:42:54 - INFO - scheduled_energy_summary started.
+2024-11-25 11:42:54 - INFO - Inserting record into EnergySummary
+2024-11-25 11:42:54 - INFO - scheduled_energy_summary end
