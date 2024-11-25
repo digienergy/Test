@@ -2,6 +2,7 @@ import schedule
 import logging
 import time
 import os
+import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
@@ -32,12 +33,8 @@ logger.setLevel(logging.INFO)
 logger.addHandler(handler)
 
 
-# 測試：記錄日誌
-logger.info("This is an info log message.")
-logger.error("This is an error log message.")
-
 # 資料庫連接設置
-DATABASE_URL = "postgresql://postgres:Apollore100@35.221.226.168:5432/solar_data"
+DATABASE_URL = "postgresql://postgres:Apollore100@35.221.134.2:5432/solar_data"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
@@ -118,6 +115,28 @@ def insert_energy_summary(data):
             )
             session.add(new_record)
             session.commit()
+        dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
+                "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                "66666666666666", "77777777777777", "99999999999999", 
+                "88888888888888"]  
+        fake_total_generation = random.randint(35266,40000)
+
+        standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(fake_total_generation)
+        for dataloggerSN in dataloggerSNs :
+            new_record = models.EnergySummary(
+                dataloggerSN = dataloggerSN,
+                daily_generation = random.randint(50, 100),
+                total_generation = fake_total_generation,  
+                modbus_addr = 1,
+                standard_coal_saved = standard_coal,
+                co2_reduction = co2_reduction,
+                equivalent_trees = equivalent_trees,
+                timestamp = datetime.now()
+            )
+
+            session.add(new_record)
+            session.commit()
+
         logging.info(f"Inserting record into EnergySummary")
     except Exception as e:
         session.rollback()
@@ -183,12 +202,31 @@ def insert_equipment(data):
                 
                
                 session.add(new_record)
-            
-            session.commit()
+                session.commit()
         else:
             new_record = models.Equipment(
                 timestamp = datetime.now()
             )
+            session.add(new_record)
+            session.commit()
+        dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
+                    "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                    "66666666666666", "77777777777777", "99999999999999", 
+                    "88888888888888"]
+
+        for dataloggerSN in dataloggerSNs :
+            new_record = models.Equipment(
+                    dataloggerSN  = dataloggerSN,
+                    內部溫度 = random.randint(20, 30),
+                    brand = "GDW_MT",
+                    device_type = "INVERTER",
+                    modbus_addr = 1,
+                    SN = '6050KMTN22AR9999',
+                    狀態1 = 1,
+                    告警1 = 0,
+                    timestamp = datetime.now()
+                    )
+
             session.add(new_record)
             session.commit()
         logging.info(f"Inserting into the equipment table")
@@ -245,6 +283,20 @@ def insert_energy_hour(data):
             )
         session.add(new_record)
         session.commit()
+
+        dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
+                "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                "66666666666666", "77777777777777", "99999999999999", 
+                "88888888888888"]
+        for dataloggerSN in dataloggerSNs:
+            new_record = models.EnergyHour(
+                dataloggerSN = dataloggerSN,
+                hour_generation = random.uniform(0, 20),
+                modbus_addr = 1,
+                timestamp = datetime.now()
+                )
+            session.add(new_record)
+            session.commit()
         logging.debug(f"inserting record into EnergyHour")
     except Exception as e:
         session.rollback()
@@ -269,17 +321,19 @@ def get_energy_day():
         .order_by(models.SolarPreprocessData.time.desc()) 
         )    
         results = query.all()  
+       
         if results :
             clean_data.append(dataloggerSN)  
-            clean_data.append(results[0][1])
-            clean_data.append(results[0][2])   
+            clean_data.append(results[0][1])  
             clean_data.append(results[0][3])
+    print("get energy_day sucessful")
     return clean_data
       
 def insert_energy_day(data):
     session = Session()
     try:
-        if data :
+
+        if data :   
             new_record = models.EnergyDay(
                 dataloggerSN = data[0],
                 day_generation = data[1],
@@ -292,6 +346,20 @@ def insert_energy_day(data):
             )
         session.add(new_record)
         session.commit()
+ 
+        dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
+                "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                "66666666666666", "77777777777777", "99999999999999", 
+                "88888888888888"]
+        for dataloggerSN in dataloggerSNs:
+            new_record = models.EnergyDay(
+                dataloggerSN = dataloggerSN,
+                day_generation = random.randint(100,200),
+                modbus_addr = 1,
+                timestamp = datetime.now()
+            )
+            session.add(new_record)
+            session.commit()
         logging.info(f"Inserting record into EnergyDay")
 
     except Exception as e:
