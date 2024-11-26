@@ -140,10 +140,10 @@ def insert_energy_summary(data):
             session.add(new_record)
             session.commit()
 
-        logging.info(f"Inserting record into EnergySummary")
+        print(f"Inserting record into EnergySummary")
     except Exception as e:
         session.rollback()
-        logging.debug(f"Error inserting record into EnergySummary: {e}")
+        print(f"Error inserting record into EnergySummary: {e}")
     finally:
         session.close()
 
@@ -232,12 +232,12 @@ def insert_equipment(data):
 
             session.add(new_record)
             session.commit()
-        logging.info(f"Inserting into the equipment table")
+        print(f"Inserting into the equipment table")
 
     except Exception as e:
 
         session.rollback()
-        logging.debug(f"Error inserting record into Equipment: {e}")
+        print(f"Error inserting record into Equipment: {e}")
     
     finally:
         # Always close the session after operation
@@ -300,10 +300,10 @@ def insert_energy_hour(data):
                 )
             session.add(new_record)
             session.commit()
-        logging.debug(f"inserting record into EnergyHour")
+        print(f"inserting record into EnergyHour")
     except Exception as e:
         session.rollback()
-        logging.debug(f"Error inserting record into EnergyHour: {e}")
+        print(f"Error inserting record into EnergyHour: {e}")
     finally:
         session.close()
 
@@ -363,11 +363,11 @@ def insert_energy_day(data):
             )
             session.add(new_record)
             session.commit()
-        logging.info(f"Inserting record into EnergyDay")
+        print(f"Inserting record into EnergyDay")
 
     except Exception as e:
         session.rollback()
-        logging.debug(f"Error inserting record into EnergyDay: {e}")
+        print(f"Error inserting record into EnergyDay: {e}")
     finally:
         session.close()
 
@@ -383,35 +383,37 @@ def multithread_query_and_insert():
 # 定時任務函數
 def scheduled_equipment():
 
-    logging.info("scheduled_equipment started.")
+    print("scheduled_equipment started.")
     data = get_equipment()
     insert_equipment(data)
-    logging.info("scheduled_equipment end")
+    print("scheduled_equipment end")
 
 def scheduled_energy_summary():
 
-    logging.info("scheduled_energy_summary started.")
+    print("scheduled_energy_summary started.")
     data = get_energy_summary()
     insert_energy_summary(data)
-    logging.info("scheduled_energy_summary end")
+    print("scheduled_energy_summary end")
 
 def scheduled_energy_hour():
 
-    logging.info("scheduled_energy_hour started.")
+    print("scheduled_energy_hour started.")
     data = get_energy_hour()
     insert_energy_hour(data)
-    logging.info("scheduled_energy_hour end")
+    print("scheduled_energy_hour end")
 
 def scheduled_energy_day():
 
-    logging.info("scheduled_energy_day started.")
+    print("scheduled_energy_day started.")
     data = get_energy_day()
     insert_energy_day(data)
-    logging.info("scheduled_energy_day end")
+    print("scheduled_energy_day end")
 
 # 設置排程
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
 schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
+# schedule.every(1).seconds.do(scheduled_energy_hour)
+# schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("23:59").do(scheduled_energy_day)
 
