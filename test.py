@@ -140,10 +140,10 @@ def insert_energy_summary(data):
             session.add(new_record)
             session.commit()
 
-        print(f"Inserting record into EnergySummary")
+        logging.info(f"Inserting record into EnergySummary")
     except Exception as e:
         session.rollback()
-        print(f"Error inserting record into EnergySummary: {e}")
+        logging.debug(f"Error inserting record into EnergySummary: {e}")
     finally:
         session.close()
 
@@ -232,12 +232,12 @@ def insert_equipment(data):
 
             session.add(new_record)
             session.commit()
-        print(f"Inserting into the equipment table")
+        logging.info(f"Inserting into the equipment table")
 
     except Exception as e:
 
         session.rollback()
-        print(f"Error inserting record into Equipment: {e}")
+        logging.debug(f"Error inserting record into Equipment: {e}")
     
     finally:
         # Always close the session after operation
@@ -261,8 +261,11 @@ def get_energy_hour():
         )    
         results = query.all()  
         if results :
-            clean_data.append(dataloggerSN)  
-            clean_data.append(results[0][1]-results[-1][1])  
+            clean_data.append(dataloggerSN)
+            if  results[0][1]-results[-1][1] >= 0 :
+                clean_data.append(results[0][1]-results[-1][1])
+            else :
+                clean_data.append(0)
             clean_data.append(results[0][3])
 
     return clean_data
@@ -300,10 +303,10 @@ def insert_energy_hour(data):
                 )
             session.add(new_record)
             session.commit()
-        print(f"inserting record into EnergyHour")
+        logging.info(f"inserting record into EnergyHour")
     except Exception as e:
         session.rollback()
-        print(f"Error inserting record into EnergyHour: {e}")
+        logging.debug(f"Error inserting record into EnergyHour: {e}")
     finally:
         session.close()
 
@@ -311,31 +314,38 @@ def get_energy_day():
     session = Session()
     dataloggerSNs = ['10132230202714']
     now = datetime.now()
-    one_hour_ago = now - timedelta(hours=1)
-    clean_data=[]
-    for dataloggerSN  in dataloggerSNs :
-        query = (session.query(
-            models.SolarPreprocessData.time,
-            models.SolarPreprocessData.當日發電量,
-            models.SolarPreprocessData.dataloggerSN,
-            models.SolarPreprocessData.modbus_addr
-        ).filter(models.SolarPreprocessData.dataloggerSN  == dataloggerSN )
-        .filter(models.SolarPreprocessData.time >= one_hour_ago)
-        .order_by(models.SolarPreprocessData.time.desc()) 
-        )    
-        results = query.all()  
-       
-        if results :
+    today_start = datetime(now.year, now.month, now.day)  # 获取当天开始时间
+    
+    clean_data = []
+
+    for dataloggerSN in dataloggerSNs:
+        # 构造查询条件
+        query = (
+            session.query(
+                models.SolarPreprocessData.time,
+                models.SolarPreprocessData.當日發電量,
+                models.SolarPreprocessData.dataloggerSN,
+                models.SolarPreprocessData.modbus_addr
+            )
+            .filter(models.SolarPreprocessData.dataloggerSN == dataloggerSN)
+            .filter(models.SolarPreprocessData.time >= today_start)  # 限制查询当天数据
+            .filter(models.SolarPreprocessData.當日發電量 > 0)  # 过滤 當日發電量 不为 0
+            .order_by(models.SolarPreprocessData.time.desc())  # 按时间降序
+        )
+        
+        # 获取当天最后一笔資料
+        result = query.first()  # 获取结果的第一条数据
+
+        if result :
             clean_data.append(dataloggerSN)  
-            clean_data.append(results[0][1])  
-            clean_data.append(results[0][3])
-    print("get energy_day sucessful")
+            clean_data.append(result[1])  
+            clean_data.append(result[3])
+    logging.info("get energy_day sucessful")
     return clean_data
       
 def insert_energy_day(data):
     session = Session()
     try:
-
         if data :   
             new_record = models.EnergyDay(
                 dataloggerSN = data[0],
@@ -363,11 +373,11 @@ def insert_energy_day(data):
             )
             session.add(new_record)
             session.commit()
-        print(f"Inserting record into EnergyDay")
+        logging.info(f"Inserting record into EnergyDay")
 
     except Exception as e:
         session.rollback()
-        print(f"Error inserting record into EnergyDay: {e}")
+        logging.debug(f"Error inserting record into EnergyDay: {e}")
     finally:
         session.close()
 
@@ -383,31 +393,33 @@ def multithread_query_and_insert():
 # 定時任務函數
 def scheduled_equipment():
 
-    print("scheduled_equipment started.")
+    logging.info("scheduled_equipment started.")
     data = get_equipment()
     insert_equipment(data)
-    print("scheduled_equipment end")
+    logging.info("scheduled_equipment end")
 
 def scheduled_energy_summary():
 
-    print("scheduled_energy_summary started.")
+    logging.info("scheduled_energy_summary started.")
     data = get_energy_summary()
     insert_energy_summary(data)
-    print("scheduled_energy_summary end")
+    logging.info("scheduled_energy_summary end")
 
 def scheduled_energy_hour():
-
-    print("scheduled_energy_hour started.")
+    hour = datetime.now().hour
+    if hour <= 6 or hour >=18 :
+        return
+    logging.info("scheduled_energy_hour started.")
     data = get_energy_hour()
     insert_energy_hour(data)
-    print("scheduled_energy_hour end")
+    logging.info("scheduled_energy_hour end")
 
 def scheduled_energy_day():
 
-    print("scheduled_energy_day started.")
+    logging.info("scheduled_energy_day started.")
     data = get_energy_day()
     insert_energy_day(data)
-    print("scheduled_energy_day end")
+    logging.info("scheduled_energy_day end")
 
 # 設置排程
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
