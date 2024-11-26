@@ -14,7 +14,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 class SolarPreprocessData(Base):
-    __tablename__ = 'test_preprocess_main_data'
+    __tablename__ = 'preprocess_main_data'
     __table_args__ = {"schema": "data_collection"}  
 
     id = Column(String, primary_key=True)  # Assuming 'id' is the primary key
