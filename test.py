@@ -181,31 +181,79 @@ def get_equipment():
     finally:
         session.close()
 
+def state_and_alarm(record_dict):
+    alarm = record_dict["alarm1"]
+    state = record_dict["state1"]
+    n = random.randint(0, 31)
+    if alarm == 1 :
+        record_dict["alarm_start_time"] = datetime.now()   
+
+    if state == 2 : #TODO reference Table 8-2
+        record_dict["alarm_start_time"] = datetime.now()  
+         
+        error_codes = {
+                31: {"message": "SCI Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障"},
+                30: {"message": "Flash R/W Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 機器內部元件損壞"},
+                29: {"message": "Fac Fail", "description": "1. 安規設置錯誤\n2. 電網頻率不穩定"},
+                28: {"message": "AFCI Fault", "description": "1. PV組串接觸不良\n2. PV組串對地絕緣異常"},
+                27: {"message": "TBD", "description": "待定"},
+                26: {"message": "TBD", "description": "待定"},
+                25: {"message": "Relay Chk Fail", "description": "1. 繼電器異常\n2. 控制電路異常\n3. 交流測接線異常（可能存在虛接或短路現象）"},
+                24: {"message": "TBD", "description": "待定"},
+                23: {"message": "ARCFail-HW", "description": "防逆流功能異常（澳洲安規）"},
+                22: {"message": "TBD", "description": "待定"},
+                21: {"message": "TBD", "description": "待定"},
+                20: {"message": "TBD", "description": "待定"},
+                19: {"message": "DCI High", "description": "機器檢測到內部直流輸入分量超出正常範圍"},
+                18: {"message": "Isolation Fail", "description": "1. 光伏面板接地線未連接或連接有誤\n2. 直流線破損\n3. 交流端零、地線接線有誤\n4. 在早晚或陰雨天氣，空氣濕度較高時容易引發ISO報錯"},
+                17: {"message": "Vac Fail", "description": "1. 安規設置錯誤\n2. 市電電壓不穩定\n3. 交流線線徑過小或交流線較長導致阻值過高，壓降過高\n4. 交流線接線有誤，導致交流端電壓異常"},
+                16: {"message": "FAN Fail", "description": "1. 外部風扇被異物阻塞\n2. 風扇內部接線異常"},
+                15: {"message": "PV Over Voltage", "description": "PV組串電壓（開路電壓）超出逆變器最大直流輸入電壓"},
+                14: {"message": "TBD", "description": "待定"},
+                13: {"message": "Overtemp.", "description": "1. 機器長時間在高溫環境下運行\n2. 機器安裝環境不利於散熱（例如封閉空間）"},
+                12: {"message": "TBD", "description": "待定"},
+                11: {"message": "DC Bus High", "description": "1. 光伏組串電壓超過機器最大直流輸入電壓\n2. 控制板故障"},
+                10: {"message": "Ground I Fail", "description": "1. 交流測零地線接線有誤\n2. 在早晚或陰雨天氣，空氣濕度較高時可能引起報錯"},
+                9: {"message": "Utility Loss", "description": "1. 電網停電\n2. 機器AC端接線異常\n3. AC開關連接異常或開關損壞\n4. AC端未連接"},
+                8: {"message": "TBD", "description": "待定"},
+                7: {"message": "TBD", "description": "待定"},
+                6: {"message": "TBD", "description": "待定"},
+                5: {"message": "TBD", "description": "待定"},
+                4: {"message": "TBD", "description": "待定"},
+                3: {"message": "TBD", "description": "待定"},
+                2: {"message": "AC HCT Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障"},
+                1: {"message": "GFCI Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障"},
+                0: {"message": "TBD", "description": "待定"}
+            }
+        
+        record_dict["state_message"] =  error_codes[n]["message"]
+        record_dict["state_description"] = error_codes[n]["description"]
+
+    return record_dict
+
 def insert_equipment(data):
     session = Session()  
     try:
         if data :
             for item in data:   
-                new_record = models.Equipment(
-                        dataloggerSN  = item[0],
-                        內部溫度 = item[1],
-                        #direction = item[2],
-                        #type  = item[3],
-                        #ver = item[4],
-                        #ver_date = item[5],
-                        #zip = item[6],
-                        brand = item[2],
-                        device_type = item[3],
-                        modbus_addr = item[4],
-                        SN = item[5],
-                        狀態1 = item[6],
-                        告警1 = item[7],
-                        timestamp = item[8]
-                )
-                
-               
-                session.add(new_record)
+                record_dict = {
+                    "dataloggerSN": item[0],
+                    "temperature": item[1],
+                    "brand": item[2],
+                    "device_type": item[3],
+                    "modbus_addr": item[4],
+                    "SN": item[5],
+                    "state1": item[6],
+                    "alarm1": item[7],
+                    "timestamp": item[8],
+                }
+                if record_dict["state1"] == 2:
+                    record_dict = state_and_alarm(record_dict)
+                new_records = models.Equipment(**record_dict)
+                  
+                session.add(new_records)
                 session.commit()
+
         else:
             new_record = models.Equipment(
                 timestamp = datetime.now()
@@ -218,29 +266,32 @@ def insert_equipment(data):
                     "88888888888888"]
 
         for dataloggerSN in dataloggerSNs :
-            new_record = models.Equipment(
-                    dataloggerSN  = dataloggerSN,
-                    內部溫度 = random.randint(20, 30),
-                    brand = "GDW_MT",
-                    device_type = "INVERTER",
-                    modbus_addr = 1,
-                    SN = '6050KMTN22AR9999',
-                    狀態1 = 1,
-                    告警1 = 0,
-                    timestamp = datetime.now()
-                    )
-
-            session.add(new_record)
+            print("insert fake logg")
+            record_dict = {
+                    "dataloggerSN"  : dataloggerSN,
+                    "temperature" : random.randint(20, 30),
+                    "brand" : "GDW_MT",
+                    "device_type" : "INVERTER",
+                    "modbus_addr" : 1,
+                    "SN" : '6050KMTN22AR9999',
+                    "state1" : random.randint(0, 4),
+                    "alarm1" : 0,
+                    "timestamp" : datetime.now(),
+                    }
+            if record_dict["state1"] != 1 :
+                record_dict["alarm1"] =1
+                record_dict = state_and_alarm(record_dict)
+            new_records = models.Equipment(**record_dict)
+            session.add(new_records)
             session.commit()
         logging.info(f"Inserting into the equipment table")
 
     except Exception as e:
 
         session.rollback()
-        logging.debug(f"Error inserting record into Equipment: {e}")
+        logging.info(f"Error inserting record into Equipment: {e}")
     
     finally:
-        # Always close the session after operation
         session.close()
 
 def get_energy_hour():

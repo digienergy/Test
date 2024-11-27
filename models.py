@@ -4,9 +4,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
 
-DATABASE_URL = "postgresql://postgres:Apollore100@35.221.226.168:5432/solar_data"
-
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -56,11 +58,6 @@ class SolarPreprocessData(Base):
     有功功率 = Column(Float)
     內部溫度 = Column(Float)
     csq = Column(BigInteger)
-    #direction = Column(String)
-    #type = Column(String)
-    #ver = Column(String)
-    #ver_date = Column(BigInteger)
-    #zip = Column(String)
     brand = Column(String)
     device_type = Column(String)
     modbus_addr = Column(BigInteger)
@@ -73,9 +70,9 @@ class SolarPreprocessData(Base):
         return f"<TestPreprocessMainData(id={self.id}, deviceid={self.deviceid}, time={self.time})>"
 
 class EnergySummary(Base):
-    __tablename__ = 'energy_summary'  # Name of the table
+    __tablename__ = 'energy_summary'  
     __table_args__ = {"schema": "small_young"}  
-    # Define columns
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     dataloggerSN = Column(String, nullable=True)
     modbus_addr = Column(BigInteger, nullable=True)
@@ -90,22 +87,21 @@ class EnergySummary(Base):
         return f"<EnergySummary(id={self.id})>"
 
 class Equipment(Base):
-    __tablename__ = 'equipments'  # Name of the table in the database
+    __tablename__ = 'equipments' 
     __table_args__ = {"schema": "small_young"}  
-    # Define columns
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     dataloggerSN = Column(String)
-    內部溫度 = Column(Float)
-    #direction = Column(String, nullable=True)
-    #type = Column(String, nullable=True)
-    #ver = Column(String, nullable=True)
-    #ver_date = Column(Integer, nullable=True)
-    #zip = Column(String, nullable=True)
+    temperature = Column(Float)
     brand = Column(String, nullable=True)
     device_type = Column(String, nullable=True)
-    modbus_addr = Column(BigInteger, nullable=True)
-    狀態1  = Column(Double, nullable=True)
-    告警1  = Column(Double, nullable=True)
+    modbus_addr = Column(Integer, nullable=True)
+    state1  = Column(Integer, nullable=True)
+    alarm1  = Column(Integer, nullable=True)
+    alarm_start_time = Column(DateTime, nullable=True)
+    alarm_end_time = Column(DateTime, nullable=True)
+    state_message = Column(String, nullable=True)
+    state_description = Column(String, nullable=True)
     SN = Column(Double, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=True)
     
