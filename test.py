@@ -2,6 +2,7 @@ import schedule
 import logging
 import time
 import os
+import requests
 from dotenv import load_dotenv
 import random
 from concurrent.futures import ThreadPoolExecutor
@@ -105,7 +106,6 @@ def insert_energy_summary(data):
 
     try:
         if data :
-            print(data)
         
             new_record = models.EnergySummary(
                 dataloggerSN = data[3],
@@ -283,7 +283,7 @@ def insert_equipment(data):
                     "88888888888888"]
 
         for dataloggerSN in dataloggerSNs :
-            print("insert fake logg")
+            
             record_dict = {
                     "dataloggerSN"  : dataloggerSN,
                     "temperature" : random.randint(20, 30),
@@ -489,13 +489,24 @@ def scheduled_energy_day():
     insert_energy_day(data)
     logging.info("scheduled_energy_day end")
 
+def scheduled_weather():
+    
+    url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()  # 將回應轉為 JSON 格式
+        print(type(data))
+        print(data["records"]["Station"][0])
+
 # 設置排程
-# schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
-schedule.every(1).seconds.do(scheduled_energy_summary)  # 60 秒執行
+schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
+schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 # schedule.every(1).seconds.do(scheduled_energy_hour)
 # schedule.every(1).seconds.do(scheduled_energy_day)
-# schedule.every().hour.at(":59").do(scheduled_energy_hour)
-# schedule.every().day.at("23:59").do(scheduled_energy_day)
+schedule.every().hour.at(":59").do(scheduled_energy_hour)
+schedule.every().day.at("23:59").do(scheduled_energy_day)
+# schedule.every(1).seconds.do(scheduled_weather)  # 60 秒執行
 
 # 主程式：持續執行排程
 if __name__ == "__main__":
