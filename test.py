@@ -53,7 +53,12 @@ def get_energy_summary():
                 models.SolarPreprocessData.累積發電量,
                 models.SolarPreprocessData.當日發電量,
                 models.SolarPreprocessData.dataloggerSN,
-                models.SolarPreprocessData.modbus_addr
+                models.SolarPreprocessData.modbus_addr,
+                models.SolarPreprocessData.有功功率,
+                models.SolarPreprocessData.MPPT1,
+                models.SolarPreprocessData.MPPT2,
+                models.SolarPreprocessData.MPPT3,
+                models.SolarPreprocessData.MPPT4
             ).filter(models.SolarPreprocessData.dataloggerSN  == dataloggerSN )
             .distinct(models.SolarPreprocessData.dataloggerSN)
             .order_by(models.SolarPreprocessData.dataloggerSN .desc(),models.SolarPreprocessData.time.desc()) 
@@ -100,14 +105,21 @@ def insert_energy_summary(data):
 
     try:
         if data :
+            print(data)
+        
             new_record = models.EnergySummary(
                 dataloggerSN = data[3],
                 daily_generation = data[2],
                 total_generation = data[1],  
                 modbus_addr = data[4],
-                standard_coal_saved = data[5],
-                co2_reduction = data[6],
-                equivalent_trees = data[7],
+                mppt1 = data[6],
+                mppt2 = data[7],
+                mppt3 = data[8],
+                mppt4 = data[9],
+                ac_reactive_power = data[5],
+                standard_coal_saved = data[10],
+                co2_reduction = data[11],
+                equivalent_trees = data[12],
                 timestamp = data[0]
             )
             session.add(new_record)
@@ -131,6 +143,11 @@ def insert_energy_summary(data):
                 daily_generation = random.randint(50, 100),
                 total_generation = fake_total_generation,  
                 modbus_addr = 1,
+                mppt1 = random.randint(550,600),
+                mppt2 = random.randint(550,600),
+                mppt3 = random.randint(550,600),
+                mppt4 = random.randint(550,600),
+                ac_reactive_power = random.randint(1,10),
                 standard_coal_saved = standard_coal,
                 co2_reduction = co2_reduction,
                 equivalent_trees = equivalent_trees,
@@ -140,10 +157,10 @@ def insert_energy_summary(data):
             session.add(new_record)
             session.commit()
 
-        logging.info(f"Inserting record into EnergySummary")
+        print(f"Inserting record into EnergySummary")
     except Exception as e:
         session.rollback()
-        logging.debug(f"Error inserting record into EnergySummary: {e}")
+        print(f"Error inserting record into EnergySummary: {e}")
     finally:
         session.close()
 
@@ -473,12 +490,12 @@ def scheduled_energy_day():
     logging.info("scheduled_energy_day end")
 
 # 設置排程
-schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
-schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
+# schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
+schedule.every(1).seconds.do(scheduled_energy_summary)  # 60 秒執行
 # schedule.every(1).seconds.do(scheduled_energy_hour)
 # schedule.every(1).seconds.do(scheduled_energy_day)
-schedule.every().hour.at(":59").do(scheduled_energy_hour)
-schedule.every().day.at("23:59").do(scheduled_energy_day)
+# schedule.every().hour.at(":59").do(scheduled_energy_hour)
+# schedule.every().day.at("23:59").do(scheduled_energy_day)
 
 # 主程式：持續執行排程
 if __name__ == "__main__":
