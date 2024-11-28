@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import func
+from sqlalchemy import func,desc
 from sqlalchemy.sql import distinct
 import models
 from logging.handlers import TimedRotatingFileHandler
@@ -72,7 +72,7 @@ def get_energy_summary():
             for r in results:
                 for i in r:
                     clean_data.append(i)
-
+            
             standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(results[0][1])
             clean_data.append(standard_coal)
             clean_data.append(co2_reduction)
@@ -453,6 +453,62 @@ def insert_energy_day(data):
     finally:
         session.close()
 
+def weather_exchange(weather):
+
+    if '晴' in weather :
+        return 'sunny'
+    elif '多雲' in weather :
+        return 'cloudy'
+    elif '雨' in weather :
+        return 'rainy'
+    elif '陰' in weather :
+        return 'overcast'
+
+def update_hour_energy():
+    session = Session()
+    dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
+                     "11111111111111", "22222222222222", "33333333333333",
+                     "44444444444444", "55555555555555", "66666666666666",
+                     "77777777777777", "99999999999999", "88888888888888","10132230202714"]
+    
+    url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
+    response = requests.get(url)
+    try :
+        if response.status_code == 200:
+            data = response.json()  # 將回應轉為 JSON 格式
+            weather = data["records"]["Station"][181]["WeatherElement"]["Weather"]
+            weather = weather_exchange(weather)
+            for dataloggersn in dataloggerSNs:
+                record = session.query(models.EnergyHour). \
+                                filter(models.EnergyHour.dataloggerSN == dataloggersn). \
+                                order_by(desc(models.EnergyHour.timestamp)).first()
+                
+                record.weather = weather
+                session.commit()
+                
+        logging.info(f"Sucssful update weather into EnergyDay")
+        session.close()
+    except Exception as e:
+        session.rollback()
+        logging.debug(f"Error update weather into EnergyDay: {e}")
+    finally:
+        session.close() 
+
+def update_day_energy():
+    session = Session()
+    dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
+                     "11111111111111", "22222222222222", "33333333333333",
+                     "44444444444444", "55555555555555", "66666666666666",
+                     "77777777777777", "99999999999999", "88888888888888","10132230202714"]
+    
+    url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()  # 將回應轉為 JSON 格式
+        print(data["records"]["location"][13]['weatherElement'][0]['time'][0])
+        print(data["records"]["location"][13]['weatherElement'][0]['time'][1])
+        print(data["records"]["location"][13]['weatherElement'][0]['time'][2])
 
 def multithread_query_and_insert():
     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -474,7 +530,7 @@ def scheduled_energy_summary():
 
     logging.info("scheduled_energy_summary started.")
     data = get_energy_summary()
-    insert_energy_summary(data)
+    # insert_energy_summary(data)
     logging.info("scheduled_energy_summary end")
 
 def scheduled_energy_hour():
@@ -484,6 +540,7 @@ def scheduled_energy_hour():
     logging.info("scheduled_energy_hour started.")
     data = get_energy_hour()
     insert_energy_hour(data)
+    update_hour_energy()
     logging.info("scheduled_energy_hour end")
 
 def scheduled_energy_day():
@@ -494,14 +551,9 @@ def scheduled_energy_day():
     logging.info("scheduled_energy_day end")
 
 def scheduled_weather():
-    
-    url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        data = response.json()  # 將回應轉為 JSON 格式
-        print(type(data))
-        print(data["records"]["Station"][0])
+    #update_hour_energy()
+    #update_day_energy()
+    pass
 
 # 設置排程
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 

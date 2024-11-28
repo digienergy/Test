@@ -108,7 +108,7 @@ class Equipment(Base):
     state_message = Column(String, nullable=True)
     state_description = Column(String, nullable=True)
     SN = Column(Double, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=True)
+    timestamp = Column(DateTime, default=datetime.now, nullable=True)
     
 
     def __repr__(self):
@@ -127,7 +127,7 @@ class Area(Base):
     person_in_charge = Column(String(255), nullable=True)
     company = Column(String(255), nullable=True) 
     dataloggerSN = Column(String(255), nullable=True) 
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=True)  # Automatically sets the current time
+    timestamp = Column(DateTime, default=datetime.now, nullable=True)  # Automatically sets the current time
 
     def __repr__(self):
         return f"<Area(solar_area_id={self.solar_area_id}>"
@@ -135,12 +135,13 @@ class Area(Base):
 class EnergyHour(Base):
     __tablename__ = 'energy_hour'
     __table_args__ = {"schema": "small_young"} 
-    # 定義表格欄位
+    
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 自動遞增主鍵
     dataloggerSN = Column(String(255), nullable=True) 
     hour_generation = Column(Double, nullable=True)  # hour發電量
-    modbus_addr = Column(BigInteger, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)  # 自動填充時間戳記，使用當前時間
+    modbus_addr = Column(Integer, nullable=True)
+    weather = Column(String(255), nullable=True) 
+    timestamp = Column(DateTime, default = datetime.now)  # 自動填充時間戳記，使用當前時間
 
 
 
@@ -151,5 +152,6 @@ class EnergyDay(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 自動遞增主鍵
     dataloggerSN = Column(String(255), nullable=True)  
     day_generation = Column(Double, nullable=True)  # 總發電量
-    modbus_addr = Column(BigInteger, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)  # 自動填充時間戳記，使用當前時間
+    modbus_addr = Column(Integer, nullable=True)
+    weather = Column(String(255), nullable=True) 
+    timestamp = Column(DateTime, default=datetime.now)  # 自動填充時間戳記，使用當前時間
