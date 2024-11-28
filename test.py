@@ -20,11 +20,15 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
 # 配置 TimedRotatingFileHandler，設置為每天旋轉一次
-log_filename = os.path.join(log_dir, "app.log")  # 日誌文件的名稱，會根據日期自動生成
+log_filename = os.path.join(log_dir, "script")  # 日誌文件的名稱，會根據日期自動生成
 handler = TimedRotatingFileHandler(log_filename, when="midnight", interval=1, backupCount=7)
+# handler = TimedRotatingFileHandler(log_filename, when="S", interval=5, backupCount=3)  # 每 5 秒輪替
+
+
 handler.suffix = "%Y-%m-%d.log"  # 日誌文件的後綴為日期，例如 "app-2024-11-15.log"
 handler.setLevel(logging.INFO)  # 設置日誌的級別
-
+#禁用緩衝,會寫入當下的log
+handler.terminator = "\n"
 # 設置日誌格式，包含日期和日誌級別等
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 handler.setFormatter(formatter)
@@ -33,7 +37,7 @@ handler.setFormatter(formatter)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(handler)
-
+logging.basicConfig(handlers=[handler], level=logging.INFO)
 
 # 資料庫連接設置
 load_dotenv()
@@ -109,17 +113,17 @@ def insert_energy_summary(data):
         
             new_record = models.EnergySummary(
                 dataloggerSN = data[3],
-                daily_generation = data[2],
-                total_generation = data[1],  
+                daily_generation = round(data[2],2),
+                total_generation = round(data[1],2),  
                 modbus_addr = data[4],
-                mppt1 = data[6],
-                mppt2 = data[7],
-                mppt3 = data[8],
-                mppt4 = data[9],
-                ac_reactive_power = data[5],
-                standard_coal_saved = data[10],
-                co2_reduction = data[11],
-                equivalent_trees = data[12],
+                mppt1 = round(data[6],2),
+                mppt2 = round(data[7],2),
+                mppt3 = round(data[8],2),
+                mppt4 = round(data[9],2),
+                ac_reactive_power = round(data[5],2),
+                standard_coal_saved = round(data[10],2),
+                co2_reduction = round(data[11],2),
+                equivalent_trees = round(data[12],2),
                 timestamp = data[0]
             )
             session.add(new_record)
@@ -141,26 +145,26 @@ def insert_energy_summary(data):
             new_record = models.EnergySummary(
                 dataloggerSN = dataloggerSN,
                 daily_generation = random.randint(50, 100),
-                total_generation = fake_total_generation,  
+                total_generation = round(fake_total_generation,2),  
                 modbus_addr = 1,
                 mppt1 = random.randint(550,600),
                 mppt2 = random.randint(550,600),
                 mppt3 = random.randint(550,600),
                 mppt4 = random.randint(550,600),
                 ac_reactive_power = random.randint(1,10),
-                standard_coal_saved = standard_coal,
-                co2_reduction = co2_reduction,
-                equivalent_trees = equivalent_trees,
+                standard_coal_saved = round(standard_coal,2),
+                co2_reduction = round(co2_reduction,2),
+                equivalent_trees = round(equivalent_trees,2),
                 timestamp = datetime.now()
             )
 
             session.add(new_record)
             session.commit()
 
-        print(f"Inserting record into EnergySummary")
+        logging.info(f"Inserting record into EnergySummary")
     except Exception as e:
         session.rollback()
-        print(f"Error inserting record into EnergySummary: {e}")
+        logging.debug(f"Error inserting record into EnergySummary: {e}")
     finally:
         session.close()
 
@@ -344,7 +348,7 @@ def insert_energy_hour(data):
         if data :
             new_record = models.EnergyHour(
                 dataloggerSN = data[0],
-                hour_generation = data[1],
+                hour_generation = round(data[1],2),
                 modbus_addr = data[2],
                 timestamp = datetime.now()
             )
@@ -417,7 +421,7 @@ def insert_energy_day(data):
         if data :   
             new_record = models.EnergyDay(
                 dataloggerSN = data[0],
-                day_generation = data[1],
+                day_generation = round(data[1],2),
                 modbus_addr = data[2],
                 timestamp = datetime.now()
             )
