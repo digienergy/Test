@@ -510,21 +510,21 @@ def get_day_weather():
 def insert_day_weather():
     session = Session()
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
-                     "11111111111111", "22222222222222", "33333333333333",
-                     "44444444444444", "55555555555555", "66666666666666",
-                     "77777777777777", "99999999999999", "88888888888888","10132230202714"]
-    
-    for dataloggersn in dataloggerSNs:
-        record = session.query(models.EnergyDay). \
-                        filter(models.EnergyDay.dataloggerSN == dataloggersn). \
-                        order_by(desc(models.EnergyDay.timestamp)).first()
-        
-        record.weather = weather_data
-        session.commit()
-        
+                        "11111111111111", "22222222222222", "33333333333333",
+                        "44444444444444", "55555555555555", "66666666666666",
+                        "77777777777777", "99999999999999", "88888888888888","10132230202714"]
+    try:    
+        for dataloggersn in dataloggerSNs:
+            record = session.query(models.EnergyDay). \
+                            filter(models.EnergyDay.dataloggerSN == dataloggersn). \
+                            order_by(desc(models.EnergyDay.timestamp)).first()
+            
+            record.weather = weather_data
+            session.commit()
+            
         logging.info("Sucssful update weather_data into EnergyDay")
         session.close()
-    except Exception as e:
+    except Exception as e :
         session.rollback()
         logging.debug(f"Error update weather_data into EnergyDay: {e}")
     finally:
@@ -583,8 +583,8 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 # schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
-schedule.every().day.at("00:10").do(scheduled_day_weather)  # 60 秒執行
-schedule.every().day.at("21:10").do(scheduled_day_weather)  # 60 秒執行
+schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
+schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
 
 # 主程式：持續執行排程
 if __name__ == "__main__":
