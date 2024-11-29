@@ -14,6 +14,9 @@ from sqlalchemy.sql import distinct
 import models
 from logging.handlers import TimedRotatingFileHandler
 
+weather_data = None
+
+
 # 設置日誌文件的目錄
 log_dir = "logs"
 if not os.path.exists(log_dir):
@@ -178,11 +181,6 @@ def get_equipment():
                 session.query(
                     models.SolarPreprocessData.dataloggerSN ,
                     models.SolarPreprocessData.內部溫度,
-                    #models.SolarPreprocessData.direction,
-                    #models.SolarPreprocessData.type ,
-                    #models.SolarPreprocessData.ver,
-                    #models.SolarPreprocessData.ver_date,
-                    #models.SolarPreprocessData.zip,
                     models.SolarPreprocessData.brand,
                     models.SolarPreprocessData.device_type,
                     models.SolarPreprocessData.modbus_addr,
@@ -391,7 +389,7 @@ def get_energy_day():
     clean_data = []
 
     for dataloggerSN in dataloggerSNs:
-        # 构造查询条件
+        
         query = (
             session.query(
                 models.SolarPreprocessData.time,
@@ -405,8 +403,7 @@ def get_energy_day():
             .order_by(models.SolarPreprocessData.time.desc())  # 按时间降序
         )
         
-        # 获取当天最后一笔資料
-        result = query.first()  # 获取结果的第一条数据
+        result = query.first()  
 
         if result :
             clean_data.append(dataloggerSN)  
@@ -486,29 +483,52 @@ def update_hour_energy():
                 record.weather = weather
                 session.commit()
                 
-        logging.info(f"Sucssful update weather into EnergyDay")
+        logging.info(f"Sucssful update weather into EnergyHour")
         session.close()
     except Exception as e:
         session.rollback()
-        logging.debug(f"Error update weather into EnergyDay: {e}")
+        logging.debug(f"Error update weather into EnergyHour: {e}")
     finally:
         session.close() 
 
-def update_day_energy():
+def get_day_weather():
+
+    url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
+    response = requests.get(url)
+    try:
+        if response.status_code == 200:
+            data = response.json()  
+            weather = data["records"]["location"][13]['weatherElement'][0]['time'][1]['parameter']['parameterName']
+            weather_data = weather_exchange(weather)
+
+    except Exception as e:
+        session.rollback()
+        logging.debug("Error get weather from 氣象局: {e}")
+    finally:
+        session.close() 
+
+def insert_day_weather():
     session = Session()
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
                      "11111111111111", "22222222222222", "33333333333333",
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888","10132230202714"]
     
-    url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()  # 將回應轉為 JSON 格式
-        print(data["records"]["location"][13]['weatherElement'][0]['time'][0])
-        print(data["records"]["location"][13]['weatherElement'][0]['time'][1])
-        print(data["records"]["location"][13]['weatherElement'][0]['time'][2])
+    for dataloggersn in dataloggerSNs:
+        record = session.query(models.EnergyDay). \
+                        filter(models.EnergyDay.dataloggerSN == dataloggersn). \
+                        order_by(desc(models.EnergyDay.timestamp)).first()
+        
+        record.weather = weather_data
+        session.commit()
+        
+        logging.info("Sucssful update weather_data into EnergyDay")
+        session.close()
+    except Exception as e:
+        session.rollback()
+        logging.debug(f"Error update weather_data into EnergyDay: {e}")
+    finally:
+        session.close() 
 
 def multithread_query_and_insert():
     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -550,10 +570,11 @@ def scheduled_energy_day():
     insert_energy_day(data)
     logging.info("scheduled_energy_day end")
 
-def scheduled_weather():
-    #update_hour_energy()
-    #update_day_energy()
-    pass
+def scheduled_get_day_weather():
+    get_day_weather()
+
+def scheduled_insert_day_weather():
+    insert_day_weather()
 
 # 設置排程
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
@@ -561,8 +582,9 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 # schedule.every(1).seconds.do(scheduled_energy_hour)
 # schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
-schedule.every().day.at("23:59").do(scheduled_energy_day)
-# schedule.every(1).seconds.do(scheduled_weather)  # 60 秒執行
+schedule.every().day.at("21:00").do(scheduled_energy_day)
+schedule.every().day.at("00:10").do(scheduled_day_weather)  # 60 秒執行
+schedule.every().day.at("21:10").do(scheduled_day_weather)  # 60 秒執行
 
 # 主程式：持續執行排程
 if __name__ == "__main__":
