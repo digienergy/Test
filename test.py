@@ -483,6 +483,110 @@ def insert_energy_day(data):
     except Exception as e:
         logging.debug(f"Error inserting record into EnergyDay: {e}")
 
+def get_energy_monthly():
+    clean_data = []
+    dataloggerSNs = ['10132230202714']
+    now = datetime.now()
+    
+    # 获取当月开始时间和下月开始时间
+    month_start = datetime(now.year, now.month, 1)
+    next_month_start = (month_start + timedelta(days=32)).replace(day=1)  # 下个月第一天
+    try:
+        # 使用 with 语法管理 session
+        with Session() as session:
+            for dataloggerSN in dataloggerSNs:
+                # 查询当月最后一笔记录
+                last_record = (
+                    session.query(
+                        models.SolarPreprocessData.time,
+                        models.SolarPreprocessData.累積發電量,
+                        models.SolarPreprocessData.dataloggerSN,
+                        models.SolarPreprocessData.modbus_addr
+                    )
+                    .filter(models.SolarPreprocessData.dataloggerSN == dataloggerSN)
+                    .filter(models.SolarPreprocessData.time >=month_start)  # 限制查询当月数据
+                    .filter(models.SolarPreprocessData.time < next_month_start)
+                    .filter(models.SolarPreprocessData.累積發電量 > 0)  # 过滤 累積發電量 > 0
+                    .order_by(models.SolarPreprocessData.time.desc())  # 按时间降序
+                    .first()  # 获取最后一笔记录
+                )
+
+                # 查询当月第一笔记录
+                first_record = (
+                    session.query(
+                        models.SolarPreprocessData.time,
+                        models.SolarPreprocessData.累積發電量,
+                        models.SolarPreprocessData.dataloggerSN,
+                        models.SolarPreprocessData.modbus_addr
+                    )
+                    .filter(models.SolarPreprocessData.dataloggerSN == dataloggerSN)
+                    .filter(models.SolarPreprocessData.time >= month_start)  # 限制查询当月数据
+                    .filter(models.SolarPreprocessData.time < next_month_start)
+                    .filter(models.SolarPreprocessData.累積發電量 > 0)  # 过滤 累積發電量 > 0
+                    .order_by(models.SolarPreprocessData.time.asc())  # 按时间升序
+                    .first()  # 获取第一笔记录
+                )
+
+                # 如果存在记录，添加到 clean_data
+                if first_record and last_record:
+                    clean_data.append({
+                        "dataloggerSN": dataloggerSN,
+                        "time": datetime.now(),
+                        "cumulative_energy": round(last_record[1]-first_record[1],2),
+                        "modbus_addr": first_record[3],
+                        })
+
+            logging.info("get energy_month successful")
+            return clean_data
+
+    except Exception as e:
+        logging.error(f"Error getting energy_month data: {e}")
+        return []
+
+def insert_energy_monthly(data_list):
+    try:
+        with Session() as session:
+            # 插入主记录
+            if data_list:
+                for data in data_list :
+                    new_record = models.EnergyMonth(
+                        dataloggerSN=data['dataloggerSN'],
+                        month_generation=round(data['cumulative_energy'], 2),
+                        modbus_addr=data['modbus_addr'],
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_record)
+            else:
+                new_record = models.EnergyMonth(
+                    timestamp=datetime.now()
+                )
+                session.add(new_record)
+            
+            session.commit()
+
+            # 插入多条模拟记录
+            dataloggerSNs = [
+                "00000000000002", "00000000000001", "00000000000000", "11111111111111", 
+                "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                "66666666666666", "77777777777777", "99999999999999", "88888888888888", "777"
+            ]
+
+            for dataloggerSN in dataloggerSNs:
+                new_record = models.EnergyMonth(
+                    dataloggerSN=dataloggerSN,
+                    month_generation=round(random.uniform(1000, 5000), 2),  # 模拟生成 1000 到 5000 范围的随机数
+                    modbus_addr=random.randint(1, 10),  # 模拟生成 1 到 10 范围的随机 Modbus 地址
+                    timestamp=datetime.now()
+                )
+                session.add(new_record)
+
+            session.commit()  # 一次性提交批量插入的记录
+            logging.info("Inserting records into EnergyMonth completed successfully.")
+
+    except Exception as e:
+        logging.error(f"Error inserting record into EnergyMonth: {e}")
+
+
 def weather_exchange(weather):
 
     if '晴' in weather :
@@ -601,6 +705,19 @@ def scheduled_energy_day():
     insert_energy_day(data)
     logging.info("scheduled_energy_day end")
 
+def is_last_day_of_month():
+    """检查今天是否是本月的最后一天。"""
+    today = datetime.now()
+    next_day = today + timedelta(days=1)
+    return next_day.month != today.month
+
+def scheduled_energy_monthly():
+
+    logging.info("scheduled_energy_monthly started.")
+    data = get_energy_monthly()
+    insert_energy_monthly(data)
+    logging.info("scheduled_energy_monthly end")
+
 def scheduled_get_day_weather():
     get_day_weather()
 
@@ -616,7 +733,9 @@ schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
 schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
 schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
-
+schedule.every().day.at("21:00").do(
+    lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
+)
 # 主程式：持續執行排程
 if __name__ == "__main__":
     logging.info("Scheduler started.")

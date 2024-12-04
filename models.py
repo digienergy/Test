@@ -155,3 +155,13 @@ class EnergyDay(Base):
     modbus_addr = Column(Integer, nullable=True)
     weather = Column(String(255), nullable=True) 
     timestamp = Column(DateTime, default=datetime.now)  # 自動填充時間戳記，使用當前時間
+
+class EnergyMonth(Base):
+    __tablename__ = 'energy_month'
+    __table_args__ = {"schema": "small_young"} 
+    # 定義表格欄位
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 自動遞增主鍵
+    dataloggerSN = Column(String(255), nullable=True)  
+    month_generation = Column(Double, nullable=True)  # 總發電量
+    modbus_addr = Column(Integer, nullable=True)
+    timestamp = Column(DateTime, default=datetime.now)  # 自動填充時間戳記，使用當前時間
