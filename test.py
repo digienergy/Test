@@ -574,8 +574,8 @@ def insert_energy_monthly(data_list):
             for dataloggerSN in dataloggerSNs:
                 new_record = models.EnergyMonth(
                     dataloggerSN=dataloggerSN,
-                    month_generation=round(random.uniform(1000, 5000), 2),  # 模拟生成 1000 到 5000 范围的随机数
-                    modbus_addr=random.randint(1, 10),  # 模拟生成 1 到 10 范围的随机 Modbus 地址
+                    month_generation=round(random.uniform(500, 1000), 2),  # 模拟生成 1000 到 5000 范围的随机数
+                    modbus_addr=1,  # 模拟生成 1 到 10 范围的随机 Modbus 地址
                     timestamp=datetime.now()
                 )
                 session.add(new_record)
@@ -602,7 +602,7 @@ def update_hour_energy():
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
                      "11111111111111", "22222222222222", "33333333333333",
                      "44444444444444", "55555555555555", "66666666666666",
-                     "77777777777777", "99999999999999", "88888888888888", "10132230202714"]
+                     "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
     
     url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
     
@@ -633,7 +633,7 @@ def update_hour_energy():
         logging.debug(f"Error updating weather into EnergyHour: {e}")
 
 def get_day_weather():
-
+    global weather_data 
     url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=CWA-B16BBF2C-E747-4E39-BF07-286710733FAE"
     response = requests.get(url)
     try:
@@ -653,7 +653,7 @@ def insert_day_weather():
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
 
-    weather_data = "Sunny"  # 假设这是你要插入的天气数据
+    global weather_data   # 假设这是你要插入的天气数据
 
     try:
         # 使用 with 语法来管理数据库会话
