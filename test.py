@@ -40,7 +40,6 @@ handler.setFormatter(formatter)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(handler)
-logging.basicConfig(handlers=[handler], level=logging.INFO)
 
 # 資料庫連接設置
 load_dotenv()
@@ -227,43 +226,34 @@ def state_and_alarm(record_dict):
         record_dict["alarm_start_time"] = datetime.now()  
          
         error_codes = {
-                31: {"message": "SCI Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障"},
-                30: {"message": "Flash R/W Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 機器內部元件損壞"},
-                29: {"message": "Fac Fail", "description": "1. 安規設置錯誤\n2. 電網頻率不穩定"},
-                28: {"message": "AFCI Fault", "description": "1. PV組串接觸不良\n2. PV組串對地絕緣異常"},
-                27: {"message": "TBD", "description": "待定"},
-                26: {"message": "TBD", "description": "待定"},
-                25: {"message": "Relay Chk Fail", "description": "1. 繼電器異常\n2. 控制電路異常\n3. 交流測接線異常（可能存在虛接或短路現象）"},
-                24: {"message": "TBD", "description": "待定"},
-                23: {"message": "ARCFail-HW", "description": "防逆流功能異常（澳洲安規）"},
-                22: {"message": "TBD", "description": "待定"},
-                21: {"message": "TBD", "description": "待定"},
-                20: {"message": "TBD", "description": "待定"},
-                19: {"message": "DCI High", "description": "機器檢測到內部直流輸入分量超出正常範圍"},
-                18: {"message": "Isolation Fail", "description": "1. 光伏面板接地線未連接或連接有誤\n2. 直流線破損\n3. 交流端零、地線接線有誤\n4. 在早晚或陰雨天氣，空氣濕度較高時容易引發ISO報錯"},
-                17: {"message": "Vac Fail", "description": "1. 安規設置錯誤\n2. 市電電壓不穩定\n3. 交流線線徑過小或交流線較長導致阻值過高，壓降過高\n4. 交流線接線有誤，導致交流端電壓異常"},
-                16: {"message": "FAN Fail", "description": "1. 外部風扇被異物阻塞\n2. 風扇內部接線異常"},
-                15: {"message": "PV Over Voltage", "description": "PV組串電壓（開路電壓）超出逆變器最大直流輸入電壓"},
-                14: {"message": "TBD", "description": "待定"},
-                13: {"message": "Overtemp.", "description": "1. 機器長時間在高溫環境下運行\n2. 機器安裝環境不利於散熱（例如封閉空間）"},
-                12: {"message": "TBD", "description": "待定"},
-                11: {"message": "DC Bus High", "description": "1. 光伏組串電壓超過機器最大直流輸入電壓\n2. 控制板故障"},
-                10: {"message": "Ground I Fail", "description": "1. 交流測零地線接線有誤\n2. 在早晚或陰雨天氣，空氣濕度較高時可能引起報錯"},
-                9: {"message": "Utility Loss", "description": "1. 電網停電\n2. 機器AC端接線異常\n3. AC開關連接異常或開關損壞\n4. AC端未連接"},
-                8: {"message": "TBD", "description": "待定"},
-                7: {"message": "TBD", "description": "待定"},
-                6: {"message": "TBD", "description": "待定"},
-                5: {"message": "TBD", "description": "待定"},
-                4: {"message": "TBD", "description": "待定"},
-                3: {"message": "TBD", "description": "待定"},
-                2: {"message": "AC HCT Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障"},
-                1: {"message": "GFCI Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障"},
-                0: {"message": "TBD", "description": "待定"}
-            }
-        
-        record_dict["state_message"] =  error_codes[n]["message"]
-        record_dict["state_description"] = error_codes[n]["description"]
+            31: {"message": "SCI Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 控制板故障", "level": "Critical"},
+            30: {"message": "Flash R/W Fail", "description": "1. 受外部因素（例如磁場影響等）引起的暫時性現象\n2. 機器內部元件損壞", "level": "Major"},
+            29: {"message": "Fac Fail", "description": "1. 安規設置錯誤\n2. 電網頻率不穩定", "level": "Major"},
+            28: {"message": "AFCI Fault", "description": "1. PV組串接觸不良\n2. PV組串對地絕緣異常", "level": "Minor"},
+            27: {"message": "TBD", "description": "待定", "level": "Warning"},
+            26: {"message": "TBD", "description": "待定", "level": "Warning"},
+            25: {"message": "Relay Chk Fail", "description": "1. 繼電器異常\n2. 控制電路異常\n3. 交流測接線異常（可能存在虛接或短路現象）", "level": "Major"},
+            24: {"message": "TBD", "description": "待定", "level": "Warning"},
+            23: {"message": "ARCFail-HW", "description": "防逆流功能異常（澳洲安規）", "level": "Minor"},
+            22: {"message": "TBD", "description": "待定", "level": "Warning"},
+            19: {"message": "DCI High", "description": "機器檢測到內部直流輸入分量超出正常範圍", "level": "Critical"},
+            18: {"message": "Isolation Fail", "description": "1. 光伏面板接地線未連接或連接有誤\n2. 直流線破損\n3. 交流端零、地線接線有誤\n4. 在早晚或陰雨天氣，空氣濕度較高時容易引發ISO報錯", "level": "Major"},
+            17: {"message": "Vac Fail", "description": "1. 安規設置錯誤\n2. 市電電壓不穩定\n3. 交流線線徑過小或交流線較長導致阻值過高，壓降過高\n4. 交流線接線有誤，導致交流端電壓異常", "level": "Minor"},
+            15: {"message": "PV Over Voltage", "description": "PV組串電壓（開路電壓）超出逆變器最大直流輸入電壓", "level": "Critical"},
+            13: {"message": "Overtemp.", "description": "1. 機器長時間在高溫環境下運行\n2. 機器安裝環境不利於散熱（例如封閉空間）", "level": "Major"},
+            10: {"message": "Ground I Fail", "description": "1. 交流測零地線接線有誤\n2. 在早晚或陰雨天氣，空氣濕度較高時可能引起報錯", "level": "Minor"},
+            9: {"message": "Utility Loss", "description": "1. 電網停電\n2. 機器AC端接線異常\n3. AC開關連接異常或開關損壞\n4. AC端未連接", "level": "Critical"}
+        }
 
+        # 取得錯誤代碼資訊
+        if n in error_codes:
+            record_dict["state_message"] = error_codes[n]["message"]
+            record_dict["state_description"] = error_codes[n]["description"]
+            record_dict["level"] = error_codes[n]["level"]
+        else:
+            record_dict["state_message"] = "Unknown Error"
+            record_dict["state_description"] = "No description available"
+            record_dict["level"] = "Warning"
     return record_dict
 
 def insert_equipment(data):
@@ -285,6 +275,7 @@ def insert_equipment(data):
                     }
                     if record_dict["state1"] == 2:
                         record_dict = state_and_alarm(record_dict)
+                    
                     new_record = models.Equipment(**record_dict)
                     session.add(new_record)
                     session.commit()
@@ -319,7 +310,7 @@ def insert_equipment(data):
                 new_record = models.Equipment(**record_dict)
                 session.add(new_record)
                 session.commit()
-
+            
             logging.info(f"Inserting into the equipment table")
 
     except Exception as e:
@@ -653,10 +644,9 @@ def insert_day_weather():
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
 
-    global weather_data   # 假设这是你要插入的天气数据
+    global weather_data   
 
     try:
-        # 使用 with 语法来管理数据库会话
         with Session() as session:
             for dataloggerSN in dataloggerSNs:
                 record = session.query(models.EnergyDay). \
@@ -725,17 +715,17 @@ def scheduled_insert_day_weather():
     insert_day_weather()
 
 # 設置排程
-schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
-schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
+schedule.every(1).seconds.do(scheduled_equipment)  # 60 秒執行 
+# schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 # schedule.every(1).seconds.do(scheduled_energy_hour)
 # schedule.every(1).seconds.do(scheduled_energy_day)
-schedule.every().hour.at(":59").do(scheduled_energy_hour)
-schedule.every().day.at("21:00").do(scheduled_energy_day)
-schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
-schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
-schedule.every().day.at("21:00").do(
-    lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
-)
+# schedule.every().hour.at(":59").do(scheduled_energy_hour)
+# schedule.every().day.at("21:00").do(scheduled_energy_day)
+# schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
+# schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
+# schedule.every().day.at("21:00").do(
+#     lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
+# )
 # 主程式：持續執行排程
 if __name__ == "__main__":
     logging.info("Scheduler started.")

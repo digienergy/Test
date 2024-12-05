@@ -108,6 +108,7 @@ class Equipment(Base):
     state_message = Column(String, nullable=True)
     state_description = Column(String, nullable=True)
     SN = Column(Double, nullable=True)
+    level = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.now, nullable=True)
     
 
