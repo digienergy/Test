@@ -52,47 +52,92 @@ engine = create_engine(
     pool_recycle=1800            # 回收連線時間 (秒，30 分鐘)
 )
 
-
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
-
 
 def get_energy_summary():
     dataloggerSNs = ['10132230202714']
     clean_data = []
     try:
-        for dataloggerSN in dataloggerSNs:
-            # 使用 with 語法管理 Session
-            with Session() as session:
-                query = (session.query(
+        # 使用 with 語法管理 Session
+        with Session() as session:
+            results = (session.query(
+                models.SolarPreprocessData.time,
+                models.SolarPreprocessData.累積發電量,
+                models.SolarPreprocessData.當日發電量,
+                models.SolarPreprocessData.dataloggerSN,
+                models.SolarPreprocessData.modbus_addr,
+                models.SolarPreprocessData.有功功率,
+                models.SolarPreprocessData.MPPT1輸入電壓,
+                models.SolarPreprocessData.MPPT2輸入電壓,
+                models.SolarPreprocessData.MPPT3輸入電壓,
+                models.SolarPreprocessData.MPPT4輸入電壓
+            ).filter(models.SolarPreprocessData.dataloggerSN == '10132230202714')
+            .order_by(models.SolarPreprocessData.time.desc())
+            .first())  # 取得最新一筆資料
+
+            result = list(results)
+
+            standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(results[1])
+            result.append(standard_coal)
+            result.append(co2_reduction)
+            result.append(equivalent_trees)
+
+        logging.info("successfully got record from preprocess_main_data")
+        return result
+
+    except Exception as e:
+        logging.debug(f"Error getting record from preprocess_main_data: {e}")
+
+def get_miaoli_energy_summary():
+    clean_data = []
+    try:
+        # 使用 with 語法管理 Session
+        with Session() as session:
+            print("fffffffffffff")
+            latest_time_subquery = (
+                session.query(
+                    models.SolarPreprocessData.modbus_addr,
+                    func.max(models.SolarPreprocessData.time).label("latest_time")
+                )
+                .filter(models.SolarPreprocessData.dataloggerSN == '10132230202639')
+                .group_by(models.SolarPreprocessData.modbus_addr)
+                .subquery()
+            )
+
+            # Join the main table with the subquery to fetch the complete row
+            results = (
+                session.query(
                     models.SolarPreprocessData.time,
                     models.SolarPreprocessData.累積發電量,
                     models.SolarPreprocessData.當日發電量,
                     models.SolarPreprocessData.dataloggerSN,
                     models.SolarPreprocessData.modbus_addr,
-                    models.SolarPreprocessData.有功功率,
-                    models.SolarPreprocessData.MPPT1,
-                    models.SolarPreprocessData.MPPT2,
-                    models.SolarPreprocessData.MPPT3,
-                    models.SolarPreprocessData.MPPT4
-                ).filter(models.SolarPreprocessData.dataloggerSN == dataloggerSN)
-                .distinct(models.SolarPreprocessData.dataloggerSN)
-                .order_by(models.SolarPreprocessData.dataloggerSN.desc(),
-                          models.SolarPreprocessData.time.desc())
-                .limit(100))  # 限制只取得前 100 筆資料
+                    models.SolarPreprocessData.輸入功率,
+                    models.SolarPreprocessData.MPPT1輸入電壓,
+                    models.SolarPreprocessData.MPPT2輸入電壓,
+                    models.SolarPreprocessData.MPPT3輸入電壓,
+                )
+                .join(
+                    latest_time_subquery,
+                    (models.SolarPreprocessData.modbus_addr == latest_time_subquery.c.modbus_addr)
+                    & (models.SolarPreprocessData.time == latest_time_subquery.c.latest_time)
+                )
+                .order_by(models.SolarPreprocessData.time.desc())  # Optional
+                .all()
+            )
+            
+            result = list(results)
+            print(len(result))
+            for i in result :
+                print(i[0])
+            standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(results[1])
+            result.append(standard_coal)
+            result.append(co2_reduction)
+            result.append(equivalent_trees)
 
-                results = query.all()
-                for r in results:
-                    for i in r:
-                        clean_data.append(i)
-
-                standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(results[0][1])
-                clean_data.append(standard_coal)
-                clean_data.append(co2_reduction)
-                clean_data.append(equivalent_trees)
-                
         logging.info("successfully got record from preprocess_main_data")
-        return clean_data
+        #return result
 
     except Exception as e:
         logging.debug(f"Error getting record from preprocess_main_data: {e}")
@@ -123,17 +168,18 @@ def insert_energy_summary(data):
     try:
         if data:
             # 使用 with 語法管理 Session
+            
             with Session() as session:
                 new_record = models.EnergySummary(
-                    dataloggerSN=data[3],
-                    daily_generation=round(data[2], 2),
                     total_generation=round(data[1], 2),
+                    daily_generation=round(data[2], 2),
+                    dataloggerSN=data[3],
                     modbus_addr=data[4],
+                    ac_reactive_power=round(data[5], 2),
                     mppt1=round(data[6], 2),
                     mppt2=round(data[7], 2),
                     mppt3=round(data[8], 2),
                     mppt4=round(data[9], 2),
-                    ac_reactive_power=round(data[5], 2),
                     standard_coal_saved=round(data[10], 2),
                     co2_reduction=round(data[11], 2),
                     equivalent_trees=round(data[12], 2),
@@ -152,7 +198,7 @@ def insert_energy_summary(data):
 
         # 以下插入 fake 資料
         dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111",
-                         "22222222222222", "33333333333333", "44444444444444", "55555555555555",
+                         "33333333333333", "44444444444444", "55555555555555",
                          "66666666666666", "77777777777777", "99999999999999",
                          "88888888888888","777"]
         fake_total_generation = random.randint(35266, 40000)
@@ -209,8 +255,7 @@ def get_equipment():
                     .order_by(models.SolarPreprocessData.dataloggerSN, models.SolarPreprocessData.time.desc())
                 )
 
-                results.extend(query.all())  # 將結果加入到 results 清單中
-
+                results.extend(query.first())  # 將結果加入到 results 清單中
         return results
     except Exception as e:
         logging.debug(f"Error getting equipment data: {e}")
@@ -260,25 +305,25 @@ def insert_equipment(data):
     try:
         # 使用 with 語法來管理 session
         with Session() as session:
-            if data:
-                for item in data:
-                    record_dict = {
-                        "dataloggerSN": item[0],
-                        "temperature": item[1],
-                        "brand": item[2],
-                        "device_type": item[3],
-                        "modbus_addr": item[4],
-                        "SN": item[5],
-                        "state1": item[6],
-                        "alarm1": item[7],
-                        "timestamp": item[8],
-                    }
-                    if record_dict["state1"] == 2:
-                        record_dict = state_and_alarm(record_dict)
-                    
-                    new_record = models.Equipment(**record_dict)
-                    session.add(new_record)
-                    session.commit()
+            if data:   
+                record_dict = {
+                    "dataloggerSN": data[0],
+                    "temperature": data[1],
+                    "brand": data[2],
+                    "device_type": data[3],
+                    "modbus_addr": data[4],
+                    "SN": data[5],
+                    "state1": data[6],
+                    "alarm1": data[7],
+                    "timestamp": data[8],
+                }
+                if record_dict["state1"] == 2:
+                    record_dict = state_and_alarm(record_dict)
+
+                new_record = models.Equipment(**record_dict)
+
+                session.add(new_record)
+                session.commit()
 
             else:
                 new_record = models.Equipment(
@@ -289,7 +334,7 @@ def insert_equipment(data):
 
             # 假設 dataloggerSNs 是一組假數據
             dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
-                             "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                             "33333333333333", "44444444444444", "55555555555555", 
                              "66666666666666", "77777777777777", "99999999999999", "88888888888888","777"]
 
             for dataloggerSN in dataloggerSNs:
@@ -354,8 +399,7 @@ def get_energy_hour():
     except Exception as e:
         # 捕捉錯誤並記錄錯誤訊息
         logging.error(f"Error occurred while retrieving energy data: {e}")
-        
-      
+              
 def insert_energy_hour(data):
     try:
         
@@ -380,7 +424,7 @@ def insert_energy_hour(data):
             session.commit()
 
             dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
-                             "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                             "33333333333333", "44444444444444", "55555555555555", 
                              "66666666666666", "77777777777777", "99999999999999", "88888888888888","777"]
 
             for dataloggerSN in dataloggerSNs:
@@ -455,7 +499,7 @@ def insert_energy_day(data):
 
             dataloggerSNs = [
                 "00000000000002", "00000000000001", "00000000000000", "11111111111111", 
-                "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                "33333333333333", "44444444444444", "55555555555555", 
                 "66666666666666", "77777777777777", "99999999999999", "88888888888888","777"
             ]
 
@@ -558,7 +602,7 @@ def insert_energy_monthly(data_list):
             # 插入多条模拟记录
             dataloggerSNs = [
                 "00000000000002", "00000000000001", "00000000000000", "11111111111111", 
-                "22222222222222", "33333333333333", "44444444444444", "55555555555555", 
+                "33333333333333", "44444444444444", "55555555555555", 
                 "66666666666666", "77777777777777", "99999999999999", "88888888888888", "777"
             ]
 
@@ -591,7 +635,7 @@ def weather_exchange(weather):
 
 def update_hour_energy():
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
-                     "11111111111111", "22222222222222", "33333333333333",
+                     "11111111111111", "33333333333333",
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
     
@@ -640,7 +684,7 @@ def get_day_weather():
 
 def insert_day_weather():
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
-                     "11111111111111", "22222222222222", "33333333333333",
+                     "11111111111111", "33333333333333",
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
 
@@ -677,6 +721,12 @@ def scheduled_energy_summary():
     data = get_energy_summary()
     insert_energy_summary(data)
     logging.info("scheduled_energy_summary end")
+
+def scheduled_miaoli_energy_summary():
+    logging.info("scheduled_miaoli_energy_summary started.")
+    data = get_miaoli_energy_summary()
+    #insert_miaoli_energy_summary(data)
+    logging.info("scheduled_miaoli_energy_summary end")
 
 def scheduled_energy_hour():
     hour = datetime.now().hour
@@ -717,14 +767,13 @@ def scheduled_insert_day_weather():
 # 設置排程
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
 schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
-# schedule.every(1).seconds.do(scheduled_energy_hour)
-# schedule.every(1).seconds.do(scheduled_energy_day)
+#schedule.every(1).seconds.do(scheduled_miaoli_energy_summary)  
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
 schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
 schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
 schedule.every().day.at("21:00").do(
-    lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
+     lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
 )
 # 主程式：持續執行排程
 if __name__ == "__main__":
