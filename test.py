@@ -852,36 +852,53 @@ def insert_day_weather():
         logging.debug(f"Error updating weather_data into EnergyDay: {e}")
 
 
+def is_within_restricted_hours():
+    #Check if the current time is within restricted hours (18:00 - 6:00).
+    hour = datetime.now().hour
+    if hour <= 6 or hour >= 18:
+        return True
+    return False
+
 # 定時任務函數
 def scheduled_equipment():
-
+    if is_within_restricted_hours():
+        print("Skipping scheduled_equipment due to restricted hours.")
+        return
     logging.info("scheduled_equipment started.")
     data = get_equipment()
     insert_equipment(data)
     logging.info("scheduled_equipment end")
 
 def scheduled_energy_summary():
-
+    if is_within_restricted_hours():
+        print("Skipping scheduled_equipment due to restricted hours.")
+        return
     logging.info("scheduled_energy_summary started.")
     data = get_energy_summary()
     insert_energy_summary(data)
     logging.info("scheduled_energy_summary end")
 
 def scheduled_miaoli_energy_summary():
+    if is_within_restricted_hours():
+        print("Skipping scheduled_equipment due to restricted hours.")
+        return    
     logging.info("scheduled_miaoli_energy_summary started.")
     data = get_miaoli_energy_summary()
     insert_miaoli_energy_summary(data)
     logging.info("scheduled_miaoli_energy_summary end")
 
 def scheduled_miaoli_equipment():
+    if is_within_restricted_hours():
+        print("Skipping scheduled_equipment due to restricted hours.")
+        return
     logging.info("scheduled_miaoli_equipments started.")
     data = get_miaoli_equipment()
     insert_miaoli_equipment(data)
     logging.info("scheduled_miaoli_equipments end")
 
 def scheduled_energy_hour():
-    hour = datetime.now().hour
-    if hour <= 6 or hour >=18 :
+    if is_within_restricted_hours():
+        print("Skipping scheduled_equipment due to restricted hours.")
         return
     logging.info("scheduled_energy_hour started.")
     data = get_energy_hour()
