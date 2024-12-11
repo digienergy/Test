@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func,desc
-from sqlalchemy.sql import distinct
+from sqlalchemy.sql import distinct,func
 import models
 from logging.handlers import TimedRotatingFileHandler
 
@@ -56,7 +56,6 @@ engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
 def get_energy_summary():
-    dataloggerSNs = ['10132230202714']
     clean_data = []
     try:
         # 使用 with 語法管理 Session
@@ -89,12 +88,24 @@ def get_energy_summary():
     except Exception as e:
         logging.debug(f"Error getting record from preprocess_main_data: {e}")
 
+def calculate_ac_reactivate_power(data):
+
+    voltage_a = data.pop(9)
+    voltage_b = data.pop(9)
+    voltage_c = data.pop(9)
+    current_a = data.pop(9)
+    current_b = data.pop(9)
+    current_c = data.pop(9)
+    ac_reactive_power = round(voltage_a*current_a+voltage_b*current_b+voltage_c*current_c,2)/1000
+    data[5] = ac_reactive_power
+
+    return data
 def get_miaoli_energy_summary():
     clean_data = []
     try:
         # 使用 with 語法管理 Session
         with Session() as session:
-            print("fffffffffffff")
+            # Subquery to get the latest time for each modbus_addr
             latest_time_subquery = (
                 session.query(
                     models.SolarPreprocessData.modbus_addr,
@@ -105,42 +116,89 @@ def get_miaoli_energy_summary():
                 .subquery()
             )
 
-            # Join the main table with the subquery to fetch the complete row
             results = (
                 session.query(
                     models.SolarPreprocessData.time,
-                    models.SolarPreprocessData.累積發電量,
-                    models.SolarPreprocessData.當日發電量,
+                    func.coalesce(models.SolarPreprocessData.累積發電量,0).label('累積發電量'),
+                    func.coalesce(models.SolarPreprocessData.當日發電量,0).label('當日發電量'),
                     models.SolarPreprocessData.dataloggerSN,
                     models.SolarPreprocessData.modbus_addr,
-                    models.SolarPreprocessData.輸入功率,
-                    models.SolarPreprocessData.MPPT1輸入電壓,
-                    models.SolarPreprocessData.MPPT2輸入電壓,
-                    models.SolarPreprocessData.MPPT3輸入電壓,
+                    func.coalesce(models.SolarPreprocessData.輸入功率,0).label('輸入功率'),
+                    func.coalesce(models.SolarPreprocessData.MPPT1輸入電壓,0).label('MPPT1輸入電壓'),
+                    func.coalesce(models.SolarPreprocessData.MPPT2輸入電壓,0).label('MPPT2輸入電壓'),
+                    func.coalesce(models.SolarPreprocessData.MPPT3輸入電壓,0).label('MPPT3輸入電壓'),
+                    func.coalesce(models.SolarPreprocessData.電網A相電壓,0).label('電網A相電壓'),
+                    func.coalesce(models.SolarPreprocessData.電網B相電壓,0).label('電網B相電壓'),
+                    func.coalesce(models.SolarPreprocessData.電網C相電壓,0).label('電網C相電壓'),
+                    func.coalesce(models.SolarPreprocessData.電網A相電流,0).label('電網A相電流'),
+                    func.coalesce(models.SolarPreprocessData.電網B相電流,0).label('電網B相電流'),
+                    func.coalesce(models.SolarPreprocessData.電網C相電流,0).label('電網C相電流'),
                 )
                 .join(
                     latest_time_subquery,
                     (models.SolarPreprocessData.modbus_addr == latest_time_subquery.c.modbus_addr)
                     & (models.SolarPreprocessData.time == latest_time_subquery.c.latest_time)
                 )
-                .order_by(models.SolarPreprocessData.time.desc())  # Optional
+                .distinct()  
                 .all()
             )
-            
-            result = list(results)
-            print(len(result))
-            for i in result :
-                print(i[0])
-            standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(results[1])
-            result.append(standard_coal)
-            result.append(co2_reduction)
-            result.append(equivalent_trees)
 
+            for i in results :
+
+                i_list = list(i)
+                data = calculate_ac_reactivate_power(i_list)
+
+                if i_list[2] :
+                    standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(i[2])
+                else:
+                    i_list[2]=0
+                    standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(i[2])
+                
+                i_list.append(standard_coal)
+                i_list.append(co2_reduction)
+                i_list.append(equivalent_trees)
+                
         logging.info("successfully got record from preprocess_main_data")
-        #return result
+
+        return results
 
     except Exception as e:
         logging.debug(f"Error getting record from preprocess_main_data: {e}")
+
+def insert_miaoli_energy_summary(datas):
+    try:
+        if datas:
+                   
+            with Session() as session:
+                for data in datas:
+                    new_record = models.EnergySummary(
+                        total_generation=round(data[1], 2),
+                        daily_generation=round(data[2], 2),
+                        dataloggerSN=data[3],
+                        modbus_addr=data[4],
+                        ac_reactive_power=round(data[5], 2),
+                        mppt1=round(data[6], 2),
+                        mppt2=round(data[7], 2),
+                        mppt3=round(data[8], 2),
+                        standard_coal_saved=data[9],
+                        co2_reduction=data[10],
+                        equivalent_trees=data[11],
+                        timestamp=data[0]
+                    )
+                    session.add(new_record)
+                    session.commit()
+        else:
+            # 使用 with 語法管理 Session
+            with Session() as session:
+                new_record = models.EnergySummary(
+                    timestamp=datetime.now()
+                )
+                session.add(new_record)
+                session.commit()
+
+        logging.info("Inserting Miaoli record into EnergySummary")
+    except Exception as e:
+        logging.debug(f"Error inserting Miaoli record into EnergySummary: {e}")
 
 def calculate_environmental_benefits(total_generation):
     """
@@ -162,14 +220,14 @@ def calculate_environmental_benefits(total_generation):
     # 一棵樹每年吸收 18.3 kg CO₂
     equivalent_trees = co2_reduction * 1000 / 18.3
     
-    return standard_coal, co2_reduction, equivalent_trees
+    return round(standard_coal,2), round(co2_reduction,2), round(equivalent_trees,2)
 
 def insert_energy_summary(data):
     try:
         if data:
             # 使用 with 語法管理 Session
-            
             with Session() as session:
+                
                 new_record = models.EnergySummary(
                     total_generation=round(data[1], 2),
                     daily_generation=round(data[2], 2),
@@ -180,11 +238,12 @@ def insert_energy_summary(data):
                     mppt2=round(data[7], 2),
                     mppt3=round(data[8], 2),
                     mppt4=round(data[9], 2),
-                    standard_coal_saved=round(data[10], 2),
-                    co2_reduction=round(data[11], 2),
-                    equivalent_trees=round(data[12], 2),
+                    standard_coal_saved=data[10],
+                    co2_reduction=data[11],
+                    equivalent_trees=data[12],
                     timestamp=data[0]
                 )
+                
                 session.add(new_record)
                 session.commit()
         else:
@@ -218,9 +277,9 @@ def insert_energy_summary(data):
                     mppt3=random.randint(550, 600),
                     mppt4=random.randint(550, 600),
                     ac_reactive_power=random.randint(1, 10),
-                    standard_coal_saved=round(standard_coal, 2),
-                    co2_reduction=round(co2_reduction, 2),
-                    equivalent_trees=round(equivalent_trees, 2),
+                    standard_coal_saved=standard_coal,
+                    co2_reduction=co2_reduction,
+                    equivalent_trees=equivalent_trees,
                     timestamp=datetime.now()
                 )
 
@@ -233,10 +292,11 @@ def insert_energy_summary(data):
 
 def get_equipment():
     dataloggerSNs = ['10132230202714']
+    results = []
     try:
         # 使用 with 語法來管理 Session
         with Session() as session:
-            results = []
+            
             for dataloggerSN in dataloggerSNs:
                 query = (
                     session.query(
@@ -256,6 +316,75 @@ def get_equipment():
                 )
 
                 results.extend(query.first())  # 將結果加入到 results 清單中
+        return results
+    except Exception as e:
+        logging.debug(f"Error getting equipment data: {e}")
+
+def miaoli_state_and_alarm(data):
+    #reference &*1 or &*8 Inverter fault code Bit on spec.
+    result={}
+    result['dataloggerSN'] = data[0]
+    result['temperature'] = data[1]
+    result['brand'] = data[2]
+    result['device_type'] = data[3]
+    result['modbus_addr'] = data[4]
+    result['SN'] = data[5]
+    result['state1'] = data[6]
+    result['alarm1'] = data[7]
+    result['timestamp'] = data[8]
+
+    fault_code_map = {
+            1: {"description": "Fan warning", "level": "Warning"},
+            4: {"description": "StrPIDconfig Warning", "level": "Minor"},
+            8: {"description": "StrReverse or StrShort fault", "level": "Critical"},
+            16: {"description": "Model Init fault", "level": "Critical"},
+            32: {"description": "Grid Volt Sample different", "level": "Major"},
+            64: {"description": "ISO Sample different", "level": "Major"},
+            128: {"description": "GFCI Sample different", "level": "Major"},
+            256: {"description": "PV1 or PV2 circuit short", "level": "Critical"},
+            512: {"description": "PV1 or PV2 boost driver broken", "level": "Major"},
+            4096: {"description": "AFCI Fault", "level": "Critical"},
+            16384: {"description": "AFCI Module fault", "level": "Major"},
+        }
+    
+    if result['alarm1'] in fault_code_map:
+        fault_data = fault_code_map[result['alarm1']]
+        result['alarm_start_time'] = datetime.now()
+        result["state_message"] = fault_data["description"]
+        result["description"] = fault_data["description"]
+        result["level"] = fault_data["level"]
+
+    return result
+
+def get_miaoli_equipment():
+    
+    results = []
+    try:
+        # 使用 with 語法來管理 Session
+        with Session() as session:
+            
+            query = (
+                session.query(
+                    models.SolarPreprocessData.dataloggerSN,
+                    models.SolarPreprocessData.內部溫度,
+                    models.SolarPreprocessData.brand,
+                    models.SolarPreprocessData.device_type,
+                    models.SolarPreprocessData.modbus_addr,
+                    models.SolarPreprocessData.SN,
+                    models.SolarPreprocessData.狀態1,
+                    models.SolarPreprocessData.告警1,
+                    models.SolarPreprocessData.time,
+                )
+                .filter(models.SolarPreprocessData.dataloggerSN == '10132230202639')
+                .distinct(models.SolarPreprocessData.modbus_addr)
+                .order_by(models.SolarPreprocessData.modbus_addr, models.SolarPreprocessData.time.desc())
+            ).all()
+            
+            for i in query:
+                i_list = list(i)
+                data = miaoli_state_and_alarm(i_list)
+                results.append(data)
+
         return results
     except Exception as e:
         logging.debug(f"Error getting equipment data: {e}")
@@ -305,7 +434,8 @@ def insert_equipment(data):
     try:
         # 使用 with 語法來管理 session
         with Session() as session:
-            if data:   
+            if data: 
+                 
                 record_dict = {
                     "dataloggerSN": data[0],
                     "temperature": data[1],
@@ -359,7 +489,22 @@ def insert_equipment(data):
             logging.info(f"Inserting into the equipment table")
 
     except Exception as e:
-        logging.info(f"Error inserting record into Equipment: {e}")
+        logging.debug(f"Error inserting record into Equipment: {e}")
+
+def insert_miaoli_equipment(datas):
+    try:
+        with Session() as session:
+            if datas: 
+                for data in datas:
+
+                    new_record = models.Equipment(**data)
+
+                    session.add(new_record)
+                    session.commit()
+        logging.info("Successfully inserted records into equipments.")
+
+    except Exception as e :
+        logging.debug(f"Error inserted records into equipments:{e}.")
 
 def get_energy_hour():
     try:
@@ -725,8 +870,14 @@ def scheduled_energy_summary():
 def scheduled_miaoli_energy_summary():
     logging.info("scheduled_miaoli_energy_summary started.")
     data = get_miaoli_energy_summary()
-    #insert_miaoli_energy_summary(data)
+    insert_miaoli_energy_summary(data)
     logging.info("scheduled_miaoli_energy_summary end")
+
+def scheduled_miaoli_equipment():
+    logging.info("scheduled_miaoli_equipments started.")
+    data = get_miaoli_equipment()
+    insert_miaoli_equipment(data)
+    logging.info("scheduled_miaoli_equipments end")
 
 def scheduled_energy_hour():
     hour = datetime.now().hour
@@ -767,7 +918,8 @@ def scheduled_insert_day_weather():
 # 設置排程
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
 schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
-#schedule.every(1).seconds.do(scheduled_miaoli_energy_summary)  
+schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
+schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
 schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
