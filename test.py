@@ -1067,19 +1067,19 @@ def scheduled_insert_day_weather():
     insert_day_weather()
 
 # 設置排程
-#schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
-#schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
-#schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
-#schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
-#schedule.every().hour.at(":59").do(scheduled_energy_hour)
-schedule.every(1).seconds.do(scheduled_miaoli_energy_day)
-#schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
-#schedule.every().day.at("21:00").do(scheduled_energy_day)
-#schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
-#schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
-#schedule.every().day.at("21:00").do(
-#     lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
-#)
+schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
+schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
+schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
+schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
+schedule.every().hour.at(":59").do(scheduled_energy_hour)
+#schedule.every(1).seconds.do(scheduled_miaoli_energy_day)
+schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
+schedule.every().day.at("21:00").do(scheduled_energy_day)
+schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
+schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
+schedule.every().day.at("21:00").do(
+     lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
+)
 # 主程式：持續執行排程
 if __name__ == "__main__":
     logging.info("Scheduler started.")
