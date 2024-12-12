@@ -132,14 +132,14 @@ class Equipment(Base):
     
 
     def __repr__(self):
-        return f"<Equipment(solar_area_id={self.dataloggerSN}>"
+        return f"<Equipment(solar_area_name={self.dataloggerSN}>"
 
 
 class Area(Base):
     __tablename__ = 'area'  
     __table_args__ = {"schema": "small_young"}  
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    solar_area_id = Column(String(255), nullable=True)
+    solar_area_name = Column(String(255), nullable=True)
     address = Column(String(255), nullable=True)
     district = Column(String(255), nullable=True)
     longitude = Column(String(255), nullable=True)  # Store as float for precision
@@ -150,7 +150,7 @@ class Area(Base):
     timestamp = Column(DateTime, default=datetime.now, nullable=True)  # Automatically sets the current time
 
     def __repr__(self):
-        return f"<Area(solar_area_id={self.solar_area_id}>"
+        return f"<Area(solar_area_name={self.solar_area_name}>"
 
 class EnergyHour(Base):
     __tablename__ = 'energy_hour'
