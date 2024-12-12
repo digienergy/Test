@@ -549,8 +549,9 @@ def insert_energy_hour(data):
     try:
         
         with Session() as session:
-
+            print(data)
             if data:
+                
                 new_record = models.EnergyHour(
                     dataloggerSN=data[0],
                     hour_generation=round(data[1], 2),
@@ -559,9 +560,9 @@ def insert_energy_hour(data):
                 )
             else:
                 new_record = models.EnergyHour(
-                    dataloggerSN='null',
+                    dataloggerSN='10132230202714',
                     hour_generation=0,
-                    modbus_addr='null',
+                    modbus_addr=1,
                     timestamp=datetime.now()
                 )
 
@@ -586,7 +587,7 @@ def insert_energy_hour(data):
 
     except Exception as e:
         # 捕捉錯誤並記錄錯誤訊息
-        logging.error(f"Error inserting record into EnergyHour: {e}")
+        logging.debug(f"Error inserting record into EnergyHour: {e}")
 
 def get_energy_day():
     clean_data = []
@@ -636,6 +637,9 @@ def insert_energy_day(data):
                 )
             else:
                 new_record = models.EnergyDay(
+                    dataloggerSN='10132230202714',
+                    day_generation=0,
+                    modbus_addr=1,
                     timestamp=datetime.now()
                 )
 
@@ -938,6 +942,7 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
+#schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
 schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
 schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
