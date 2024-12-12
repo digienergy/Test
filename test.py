@@ -589,46 +589,160 @@ def insert_energy_hour(data):
         # 捕捉錯誤並記錄錯誤訊息
         logging.debug(f"Error inserting record into EnergyHour: {e}")
 
-def get_energy_day():
+def get_miaoli_energy_hour():
+    try:
+        # 使用 with 語法來管理 session
+        with Session() as session:
+            now = datetime.now()
+            one_hour_ago = now - timedelta(hours=1)
+            clean_data = []
+            for modbus_addr in range(1,22):
+                query = (
+                    session.query(
+                        models.SolarPreprocessData.time,
+                        models.SolarPreprocessData.當日發電量,
+                        models.SolarPreprocessData.dataloggerSN,
+                        models.SolarPreprocessData.modbus_addr,
+                        models.SolarPreprocessData.SN
+                    )
+                    .filter(models.SolarPreprocessData.time >= one_hour_ago)
+                    .filter(models.SolarPreprocessData.dataloggerSN == '10132230202639')
+                    .filter(models.SolarPreprocessData.modbus_addr == modbus_addr)
+                    .order_by(models.SolarPreprocessData.time.desc())
+                )
+                results = query.all()
+                if results:
+                    data=[]
+                    data.append(results[0][2])
+                    # 計算當日發電量差異
+                    if results[0][1] - results[-1][1] >= 0:
+                        data.append(results[0][1] - results[-1][1])
+                    else:
+                        data.append(0)
+                    data.append(results[0][3])
+                    data.append(results[0][4])
+                clean_data.append(data)
+
+        logging.info("Successfully get energy data.")
+        return clean_data
+
+    except Exception as e:
+        # 捕捉錯誤並記錄錯誤訊息
+        logging.debug(f"Error occurred while retrieving energy data: {e}")
+
+def insert_miaoli_energy_hour(datas):
+    try:
+        with Session() as session:
+            if datas:
+                for data in datas :
+                    print(data)
+                    new_record = models.EnergyHour(
+                        dataloggerSN=data[0],
+                        hour_generation=round(data[1], 2),
+                        modbus_addr=data[2],
+                        SN = data[3],
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_record)
+                    session.commit()
+            else:
+                new_record = models.EnergyHour(
+                    dataloggerSN='10132230202714',
+                    hour_generation=0,
+                    modbus_addr=1,
+                    SN = '',
+                    timestamp=datetime.now()
+                )
+                session.add(new_record)
+                session.commit()
+            print("Successfully inserted records into EnergyHour.")
+
+    except Exception as e:
+        # 捕捉錯誤並記錄錯誤訊息
+        print(f"Error inserting record into EnergyHour: {e}")
+
+def get_miaoli_energy_day():
     clean_data = []
-    dataloggerSNs = ['10132230202714']
     now = datetime.now()
     today_start = datetime(now.year, now.month, now.day)  # 获取当天开始时间
 
     try:
         # 使用 with 语法来管理 session
         with Session() as session:
-            for dataloggerSN in dataloggerSNs:
-                query = (
-                    session.query(
-                        models.SolarPreprocessData.time,
-                        models.SolarPreprocessData.當日發電量,
-                        models.SolarPreprocessData.dataloggerSN,
-                        models.SolarPreprocessData.modbus_addr
-                    )
-                    .filter(models.SolarPreprocessData.dataloggerSN == dataloggerSN)
-                    .filter(models.SolarPreprocessData.time >= today_start)  # 限制查询当天数据
-                    .filter(models.SolarPreprocessData.當日發電量 > 0)  # 过滤 當日發電量 不为 0
-                    .order_by(models.SolarPreprocessData.time.desc())  # 按时间降序
+            latest_time_subquery = (
+                session.query(
+                    models.SolarPreprocessData.modbus_addr,
+                    func.max(models.SolarPreprocessData.time).label("latest_time")
                 )
-                
-                result = query.first()
+                .filter(models.SolarPreprocessData.dataloggerSN == '10132230202639')
+                .group_by(models.SolarPreprocessData.modbus_addr)
+                .subquery()
+            )
 
-                if result:
-                    clean_data.append(dataloggerSN)
-                    clean_data.append(result[1])
-                    clean_data.append(result[3])
+            results = (
+                session.query(
+                    models.SolarPreprocessData.time,
+                    models.SolarPreprocessData.dataloggerSN,
+                    models.SolarPreprocessData.當日發電量,
+                    models.SolarPreprocessData.modbus_addr,
+                    models.SolarPreprocessData.SN,
+                )
+                .join(
+                    latest_time_subquery,
+                    (models.SolarPreprocessData.modbus_addr == latest_time_subquery.c.modbus_addr)
+                    & (models.SolarPreprocessData.time == latest_time_subquery.c.latest_time)
+                )
+                .distinct()  
+                .all()
+            )
+
+            for result in results:
+                data=[]
+                data.append('10132230202639')
+                data.append(result[2])
+                data.append(result[3])
+                data.append(result[4])
+                clean_data.append(data)
 
             logging.info("get energy_day successful")
             return clean_data
 
     except Exception as e:
-        logging.error(f"Error getting energy_day data: {e}")
-      
+        logging.debug(f"Error getting energy_day data: {e}")
+
+def insert_miaoli_energy_day(datas):
+    try:
+        with Session() as session:
+            if datas:
+                for data in datas:
+                    new_record = models.EnergyDay(
+                        dataloggerSN=data[0],
+                        day_generation=round(data[1], 2),
+                        modbus_addr=data[2],
+                        SN=data[3],
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_record)
+                    session.commit()
+            else:
+                new_record = models.EnergyDay(
+                    dataloggerSN='10132230202639',
+                    day_generation=0,
+                    modbus_addr='',
+                    timestamp=datetime.now()
+                )
+
+            logging.info("Inserting record into EnergyDay")
+
+    except Exception as e:
+        logging.debug(f"Error inserting record into EnergyDay: {e}")
+
+
 def insert_energy_day(data):
     try:
         with Session() as session:
             if data:
+
                 new_record = models.EnergyDay(
                     dataloggerSN=data[0],
                     day_generation=round(data[1], 2),
@@ -784,7 +898,7 @@ def weather_exchange(weather):
 
 def update_hour_energy():
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
-                     "11111111111111", "33333333333333",
+                     "11111111111111", "33333333333333","10132230202639",
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
     
@@ -833,7 +947,7 @@ def get_day_weather():
 
 def insert_day_weather():
     dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", 
-                     "11111111111111", "33333333333333",
+                     "11111111111111", "33333333333333","10132230202639",
                      "44444444444444", "55555555555555", "66666666666666",
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
 
@@ -891,8 +1005,24 @@ def scheduled_miaoli_energy_summary():
     insert_miaoli_energy_summary(data)
     logging.info("scheduled_miaoli_energy_summary end")
 
-def scheduled_miaoli_equipment():
+def scheduled_miaoli_energy_hour():
     if is_within_restricted_hours():
+        print("Skipping scheduled_miaoli_energy_hour due to restricted hours.")
+        return    
+    logging.info("scheduled_miaoli_energy_hour started.")
+    data = get_miaoli_energy_hour()
+    insert_miaoli_energy_hour(data)
+    logging.info("scheduled_miaoli_energy_hour end")
+
+def scheduled_miaoli_energy_day():
+
+    logging.info("scheduled_miaoli_energy_day started.")
+    data = get_miaoli_energy_day()
+    insert_miaoli_energy_day(data)
+    logging.info("scheduled_miaoli_energy_day end")
+
+def scheduled_miaoli_equipment():
+    if is_within_restricted_days():
         print("Skipping scheduled_equipment due to restricted hours.")
         return
     logging.info("scheduled_miaoli_equipments started.")
@@ -937,18 +1067,19 @@ def scheduled_insert_day_weather():
     insert_day_weather()
 
 # 設置排程
-schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
-schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
-schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
-schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
-schedule.every().hour.at(":59").do(scheduled_energy_hour)
-#schedule.every(1).seconds.do(scheduled_energy_day)
-schedule.every().day.at("21:00").do(scheduled_energy_day)
-schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
-schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
-schedule.every().day.at("21:00").do(
-     lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
-)
+#schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
+#schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
+#schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
+#schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
+#schedule.every().hour.at(":59").do(scheduled_energy_hour)
+schedule.every(1).seconds.do(scheduled_miaoli_energy_day)
+#schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
+#schedule.every().day.at("21:00").do(scheduled_energy_day)
+#schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
+#schedule.every().day.at("21:10").do(scheduled_insert_day_weather)  # 60 秒執行
+#schedule.every().day.at("21:00").do(
+#     lambda: scheduled_energy_monthly() if is_last_day_of_month() else None
+#)
 # 主程式：持續執行排程
 if __name__ == "__main__":
     logging.info("Scheduler started.")

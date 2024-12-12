@@ -82,7 +82,7 @@ class SolarPreprocessData(Base):
     device_type = Column(String)
     modbus_addr = Column(BigInteger)
     SN = Column(String)
-    # Timestamp
+
     timestamp = Column(DateTime)
 
     def __repr__(self):
@@ -160,6 +160,7 @@ class EnergyHour(Base):
     dataloggerSN = Column(String(255), nullable=True) 
     hour_generation = Column(Double, nullable=True)  # hour發電量
     modbus_addr = Column(Integer, nullable=True)
+    SN = Column(String)
     weather = Column(String(255), nullable=True) 
     timestamp = Column(DateTime, default = datetime.now)  # 自動填充時間戳記，使用當前時間
 
@@ -173,6 +174,7 @@ class EnergyDay(Base):
     dataloggerSN = Column(String(255), nullable=True)  
     day_generation = Column(Double, nullable=True)  # 總發電量
     modbus_addr = Column(Integer, nullable=True)
+    SN = Column(String)
     weather = Column(String(255), nullable=True) 
     timestamp = Column(DateTime, default=datetime.now)  # 自動填充時間戳記，使用當前時間
 
@@ -184,4 +186,5 @@ class EnergyMonth(Base):
     dataloggerSN = Column(String(255), nullable=True)  
     month_generation = Column(Double, nullable=True)  # 總發電量
     modbus_addr = Column(Integer, nullable=True)
+    SN = Column(String)
     timestamp = Column(DateTime, default=datetime.now)  # 自動填充時間戳記，使用當前時間
