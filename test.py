@@ -171,15 +171,16 @@ def insert_miaoli_energy_summary(datas):
                    
             with Session() as session:
                 for data in datas:
+                    
                     new_record = models.EnergySummary(
-                        total_generation=round(data[1], 2),
-                        daily_generation=round(data[2], 2),
+                        total_generation=round(data[1], 2) if data[1] is not None else 0.0,
+                        daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
                         dataloggerSN=data[3],
                         modbus_addr=data[4],
-                        ac_reactive_power=round(data[5], 2),
-                        mppt1=round(data[6], 2),
-                        mppt2=round(data[7], 2),
-                        mppt3=round(data[8], 2),
+                        ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
+                        mppt1=round(data[6], 2) if data[6] is not None else 0.0,
+                        mppt2=round(data[7], 2) if data[7] is not None else 0.0,
+                        mppt3=round(data[8], 2) if data[8] is not None else 0.0,
                         standard_coal_saved=data[9],
                         co2_reduction=data[10],
                         equivalent_trees=data[11],
@@ -229,16 +230,16 @@ def insert_energy_summary(data):
             with Session() as session:
                 
                 new_record = models.EnergySummary(
-                    total_generation=round(data[1], 2),
-                    daily_generation=round(data[2], 2),
+                    total_generation=round(data[1], 2) if data[1] is not None else 0.0,
+                    daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
                     dataloggerSN=data[3],
                     modbus_addr=data[4],
-                    ac_reactive_power=round(data[5], 2),
-                    mppt1=round(data[6], 2),
-                    mppt2=round(data[7], 2),
-                    mppt3=round(data[8], 2),
-                    mppt4=round(data[9], 2),
-                    standard_coal_saved=data[10],
+                    ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
+                    mppt1=round(data[6], 2) if data[6] is not None else 0.0,
+                    mppt2=round(data[7], 2) if data[7] is not None else 0.0,
+                    mppt3=round(data[8], 2) if data[8] is not None else 0.0,
+                    mppt4=round(data[9], 2) if data[9] is not None else 0.0,
+                    standard_coal_saved=data[10] ,
                     co2_reduction=data[11],
                     equivalent_trees=data[12],
                     timestamp=data[0]
@@ -438,7 +439,7 @@ def insert_equipment(data):
                  
                 record_dict = {
                     "dataloggerSN": data[0],
-                    "temperature": data[1],
+                    "temperature": data[1] if data[1] is not None else 0.0,
                     "brand": data[2],
                     "device_type": data[3],
                     "modbus_addr": data[4],
@@ -496,8 +497,18 @@ def insert_miaoli_equipment(datas):
         with Session() as session:
             if datas: 
                 for data in datas:
-
-                    new_record = models.Equipment(**data)
+                    
+                    new_record = models.Equipment(
+                        dataloggerSN = data['dataloggerSN']  ,
+                        temperature = data['temperature'] if data['temperature'] is not None else 0 ,
+                        brand = data['brand'],
+                        device_type = data['device_type'] ,
+                        modbus_addr = data['modbus_addr'],
+                        state1 = data['state1'] if data['state1'] is not None else 1,
+                        alarm1 = data['state1'] if data['state1'] is not None else 0,
+                        SN = data['SN'],
+                        timestamp=data['timestamp']
+                    )    
 
                     session.add(new_record)
                     session.commit()
@@ -554,7 +565,7 @@ def insert_energy_hour(data):
                 
                 new_record = models.EnergyHour(
                     dataloggerSN=data[0],
-                    hour_generation=round(data[1], 2),
+                    hour_generation=round(data[1], 2) if data[6] is not None else 0.0,
                     modbus_addr=data[2],
                     timestamp=datetime.now()
                 )
@@ -651,7 +662,7 @@ def insert_miaoli_energy_hour(datas):
 
                     new_record = models.EnergyHour(
                         dataloggerSN=data[0],
-                        hour_generation=round(data[1], 2),
+                        hour_generation=round(data[1], 2) if data[6] is not None else 0.0,
                         modbus_addr=data[2],
                         SN = data[3],
                         timestamp=datetime.now()
@@ -730,7 +741,7 @@ def insert_miaoli_energy_day(datas):
                 for data in datas:
                     new_record = models.EnergyDay(
                         dataloggerSN=data[0],
-                        day_generation=round(data[1], 2),
+                        day_generation=round(data[1], 2) if data[6] is not None else 0.0,
                         modbus_addr=data[2],
                         SN=data[3],
                         timestamp=datetime.now()
@@ -758,7 +769,7 @@ def insert_energy_day(data):
 
                 new_record = models.EnergyDay(
                     dataloggerSN=data[0],
-                    day_generation=round(data[1], 2),
+                    day_generation=round(data[1], 2) if data[6] is not None else 0.0,
                     modbus_addr=data[2],
                     timestamp=datetime.now()
                 )
@@ -862,7 +873,7 @@ def insert_energy_monthly(data_list):
                 for data in data_list :
                     new_record = models.EnergyMonth(
                         dataloggerSN=data['dataloggerSN'],
-                        month_generation=round(data['cumulative_energy'], 2),
+                        month_generation=round(data['cumulative_energy'], 2) ,
                         modbus_addr=data['modbus_addr'],
                         timestamp=datetime.now()
                     )
@@ -927,6 +938,17 @@ def update_hour_energy():
             # 使用 with 语法来管理数据库会话
             with Session() as session:
                 for dataloggerSN in dataloggerSNs:
+                    
+                    if dataloggerSN == "10132230202639" :
+                        records = session.query(models.EnergyHour) \
+                                    .filter(models.EnergyHour.dataloggerSN == "10132230202639") \
+                                    .distinct()\
+                                    .order_by(desc(models.EnergyHour.timestamp))\
+                                    .all()
+                            
+                        for record in records :
+                            record.weather = weather
+                            session.commit() 
                     record = session.query(models.EnergyHour). \
                                     filter(models.EnergyHour.dataloggerSN == dataloggerSN). \
                                     order_by(desc(models.EnergyHour.timestamp)).first()
@@ -936,10 +958,7 @@ def update_hour_energy():
                         session.commit()
 
             logging.info(f"Successful update weather into EnergyHour")
-
-        else:
-            logging.warning(f"Failed to fetch data from API, status code: {response.status_code}")
-        
+       
     except Exception as e:
         logging.debug(f"Error updating weather into EnergyHour: {e}")
 
@@ -969,6 +988,16 @@ def insert_day_weather():
     try:
         with Session() as session:
             for dataloggerSN in dataloggerSNs:
+                if dataloggerSN == "10132230202639" :
+                        records = session.query(models.EnergyHour) \
+                                    .filter(models.EnergyHour.dataloggerSN == "10132230202639") \
+                                    .distinct()\
+                                    .order_by(desc(models.EnergyHour.timestamp))\
+                                    .all()
+                            
+                        for record in records :
+                            record.weather = weather
+                            session.commit() 
                 record = session.query(models.EnergyDay). \
                                 filter(models.EnergyDay.dataloggerSN == dataloggerSN). \
                                 order_by(desc(models.EnergyDay.timestamp)).first()
@@ -1085,6 +1114,7 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
+#schedule.every(1).seconds.do(scheduled_energy_hour)
 schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
