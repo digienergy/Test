@@ -591,7 +591,7 @@ def insert_energy_hour(data):
             for dataloggerSN in dataloggerSNs:
                 new_record = models.EnergyHour(
                     dataloggerSN=dataloggerSN,
-                    hour_generation=random.uniform(0, 20),
+                    hour_generation=random.randint(0, 20),
                     modbus_addr=1,
                     timestamp=datetime.now()
                 )
@@ -630,7 +630,7 @@ def get_miaoli_energy_hour():
                 if results:
                     data=[]
                     data.append(results[0][2])
-                    # 計算當日發電量差異
+                    # 計算小時發電量差異
                     start_value = 0
                     end_value = 0
                     for i in range(0,len(results)):
@@ -663,7 +663,7 @@ def insert_miaoli_energy_hour(datas):
         with Session() as session:
             if datas:
                 for data in datas :
-
+                    print(data)
                     new_record = models.EnergyHour(
                         dataloggerSN=data[0],
                         hour_generation=round(data[1], 2) if data[1] is not None else 0.0,
@@ -671,17 +671,19 @@ def insert_miaoli_energy_hour(datas):
                         SN = data[3],
                         timestamp=datetime.now()
                     )
-
+                    session.add(new_record)
+                    session.commit()
             else:
-                new_record = models.EnergyHour(
-                    dataloggerSN='10132230202639',
-                    hour_generation=0,
-                    modbus_addr=1,
-                    SN = '',
-                    timestamp=datetime.now()
-                )
-            session.add(new_record)
-            session.commit()
+                for modbus_addr in range(1,22):
+                    new_record = models.EnergyHour(
+                        dataloggerSN='10132230202639',
+                        hour_generation=0,
+                        modbus_addr = modbus_addr,
+                        SN = '',
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_record)
+                    session.commit()
             logging.info("Successfully inserted records into EnergyHour.")
 
     except Exception as e:
@@ -743,6 +745,7 @@ def insert_miaoli_energy_day(datas):
             if datas:
                 
                 for data in datas:
+                    
                     new_record = models.EnergyDay(
                         dataloggerSN=data[0],
                         day_generation=round(data[1], 2) if data[1] is not None else 0.0,
@@ -1135,7 +1138,6 @@ def scheduled_energy_hour():
         return
     logging.info("scheduled_energy_hour started.")
     data = get_energy_hour()
-    print(data)
     insert_energy_hour(data)
     update_hour_energy()
     logging.info("scheduled_energy_hour end")
@@ -1172,7 +1174,7 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
-#schedule.every(1).seconds.do(scheduled_energy_hour)
+#schedule.every(1).seconds.do(scheduled_miaoli_energy_hour)
 #schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
