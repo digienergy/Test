@@ -663,7 +663,7 @@ def insert_miaoli_energy_hour(datas):
         with Session() as session:
             if datas:
                 for data in datas :
-                    print(data)
+    
                     new_record = models.EnergyHour(
                         dataloggerSN=data[0],
                         hour_generation=round(data[1], 2) if data[1] is not None else 0.0,
