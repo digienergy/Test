@@ -19,31 +19,35 @@ weather_data = None
 
 # 設置日誌文件的目錄
 log_dir = "logs"
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+os.makedirs(log_dir, exist_ok=True)
 
 # 配置 TimedRotatingFileHandler，設置為每天旋轉一次
-log_filename = os.path.join(log_dir, "script")  # 日誌文件的名稱，會根據日期自動生成
-handler = TimedRotatingFileHandler(log_filename, when="midnight", interval=1, backupCount=7)
-# handler = TimedRotatingFileHandler(log_filename, when="S", interval=5, backupCount=3)  # 每 5 秒輪替
-
-
-handler.suffix = "%Y-%m-%d.log"  # 日誌文件的後綴為日期，例如 "app-2024-11-15.log"
-handler.setLevel(logging.INFO)  # 設置日誌的級別
-#禁用緩衝,會寫入當下的log
-handler.terminator = "\n"
-# 設置日誌格式，包含日期和日誌級別等
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+log_filename = os.path.join(log_dir, "script")
+handler = TimedRotatingFileHandler(
+    log_filename, when="midnight", interval=1, backupCount=7
+)
+handler.suffix = "%Y-%m-%d.log"  # 日誌文件的後綴為日期
+handler.terminator = "\n"  # 禁用緩衝，立即寫入
+handler.setLevel(logging.DEBUG)  # 設置日誌的級別
+formatter = logging.Formatter(
+    '%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
+)
 handler.setFormatter(formatter)
 
-# 創建 logger
+# 創建 logger 並設置日誌格式與級別
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
+
+# 添加終端輸出
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.DEBUG)
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
 
 # 資料庫連接設置
 load_dotenv()
-DATABASE_URL=os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(
     DATABASE_URL,
     pool_size=10,                # 最大連線數
@@ -54,6 +58,7 @@ engine = create_engine(
 
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
+
 
 def get_energy_summary():
     clean_data = []
@@ -562,10 +567,9 @@ def insert_energy_hour(data):
         with Session() as session:
 
             if data:
-                
                 new_record = models.EnergyHour(
                     dataloggerSN=data[0],
-                    hour_generation=round(data[1], 2) if data[6] is not None else 0.0,
+                    hour_generation=round(data[1], 2) if data[1] is not None else 0.0,
                     modbus_addr=data[2],
                     timestamp=datetime.now()
                 )
@@ -662,13 +666,12 @@ def insert_miaoli_energy_hour(datas):
 
                     new_record = models.EnergyHour(
                         dataloggerSN=data[0],
-                        hour_generation=round(data[1], 2) if data[6] is not None else 0.0,
+                        hour_generation=round(data[1], 2) if data[1] is not None else 0.0,
                         modbus_addr=data[2],
                         SN = data[3],
                         timestamp=datetime.now()
                     )
-                    session.add(new_record)
-                    session.commit()
+
             else:
                 new_record = models.EnergyHour(
                     dataloggerSN='10132230202639',
@@ -677,8 +680,8 @@ def insert_miaoli_energy_hour(datas):
                     SN = '',
                     timestamp=datetime.now()
                 )
-                session.add(new_record)
-                session.commit()
+            session.add(new_record)
+            session.commit()
             logging.info("Successfully inserted records into EnergyHour.")
 
     except Exception as e:
@@ -738,10 +741,11 @@ def insert_miaoli_energy_day(datas):
     try:
         with Session() as session:
             if datas:
+                
                 for data in datas:
                     new_record = models.EnergyDay(
                         dataloggerSN=data[0],
-                        day_generation=round(data[1], 2) if data[6] is not None else 0.0,
+                        day_generation=round(data[1], 2) if data[1] is not None else 0.0,
                         modbus_addr=data[2],
                         SN=data[3],
                         timestamp=datetime.now()
@@ -749,28 +753,79 @@ def insert_miaoli_energy_day(datas):
                     session.add(new_record)
                     session.commit()
             else:
-                new_record = models.EnergyDay(
-                    dataloggerSN='10132230202639',
-                    day_generation=0,
-                    modbus_addr='',
-                    timestamp=datetime.now()
-                )
-
+                for modbus_addr in range(1,22) :
+                    new_record = models.EnergyDay(
+                        dataloggerSN='10132230202639',
+                        day_generation=0,
+                        modbus_addr=modbus_addr,
+                        timestamp=datetime.now()
+                    )
+                    session.add(new_record)
+                    session.commit()
             logging.info("Inserting record into EnergyDay")
 
     except Exception as e:
         logging.debug(f"Error inserting record into EnergyDay: {e}")
 
 
+def get_energy_day():
+    clean_data = []
+    now = datetime.now()
+    today_start = datetime(now.year, now.month, now.day)  # 获取当天开始时间
+
+    try:
+        # 使用 with 语法来管理 session
+        with Session() as session:
+            latest_time_subquery = (
+                session.query(
+                    models.SolarPreprocessData.modbus_addr,
+                    func.max(models.SolarPreprocessData.time).label("latest_time")
+                )
+                .filter(models.SolarPreprocessData.dataloggerSN == '10132230202714',
+                        models.SolarPreprocessData.time>= today_start)
+                .group_by(models.SolarPreprocessData.modbus_addr)
+                .subquery()
+            )
+
+            results = (
+                session.query(
+                    models.SolarPreprocessData.time,
+                    models.SolarPreprocessData.dataloggerSN,
+                    models.SolarPreprocessData.當日發電量,
+                    models.SolarPreprocessData.modbus_addr,
+                    models.SolarPreprocessData.SN,
+                )
+                .join(
+                    latest_time_subquery,
+                    (models.SolarPreprocessData.modbus_addr == latest_time_subquery.c.modbus_addr)
+                    & (models.SolarPreprocessData.time == latest_time_subquery.c.latest_time)
+                )
+                .distinct()  
+                .all()
+            )
+
+            for result in results:
+                data=[]
+                data.append(result[1])
+                data.append(result[2])
+                data.append(result[3])
+                data.append(result[4])
+
+            logging.info("get energy_day successful")
+            return data
+
+    except Exception as e:
+        logging.debug(f"Error getting energy_day data: {e}")
+
 def insert_energy_day(data):
     try:
         with Session() as session:
             if data:
-
                 new_record = models.EnergyDay(
                     dataloggerSN=data[0],
-                    day_generation=round(data[1], 2) if data[6] is not None else 0.0,
+                    day_generation=round(data[1], 2) if data[1] is not None else 0.0,
                     modbus_addr=data[2],
+                    SN=data[3],
                     timestamp=datetime.now()
                 )
             else:
@@ -778,6 +833,7 @@ def insert_energy_day(data):
                     dataloggerSN='10132230202714',
                     day_generation=0,
                     modbus_addr=1,
+                    SN='6050KMTN22AR0010',
                     timestamp=datetime.now()
                 )
 
@@ -795,6 +851,7 @@ def insert_energy_day(data):
                     dataloggerSN=dataloggerSN,
                     day_generation=random.randint(100, 200),
                     modbus_addr=1,
+                    SN='6050KMTN22AR0010',
                     timestamp=datetime.now()
                 )
                 session.add(new_record)
@@ -863,7 +920,7 @@ def get_energy_monthly():
 
     except Exception as e:
         logging.error(f"Error getting energy_month data: {e}")
-        return []
+        
 
 def insert_energy_monthly(data_list):
     try:
@@ -1078,6 +1135,7 @@ def scheduled_energy_hour():
         return
     logging.info("scheduled_energy_hour started.")
     data = get_energy_hour()
+    print(data)
     insert_energy_hour(data)
     update_hour_energy()
     logging.info("scheduled_energy_hour end")
@@ -1115,6 +1173,7 @@ schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 #schedule.every(1).seconds.do(scheduled_energy_hour)
+#schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
