@@ -418,7 +418,7 @@ def state_and_alarm(record_dict):
             22: {"message": "TBD", "description": "待定", "level": "Warning"},
             19: {"message": "DCI High", "description": "機器檢測到內部直流輸入分量超出正常範圍", "level": "Critical"},
             18: {"message": "Isolation Fail", "description": "1. 光伏面板接地線未連接或連接有誤\n2. 直流線破損\n3. 交流端零、地線接線有誤\n4. 在早晚或陰雨天氣，空氣濕度較高時容易引發ISO報錯", "level": "Major"},
-            17: {"message": "Vac Fail", "description": "1. 安規設置錯誤\n2. 市電電壓不穩定\n3. 交流線線徑過小或交流線較長導致阻值過高，壓降過高\n4. 交流線接線有誤，導致交流端電壓異常", "level": "Minor"},
+            17: {"message": "Vac Fail", "description": "1. 安規設置錯誤\n2. 電電壓不穩定\n3. 交流線線徑過小或交流線較長導致阻值過高，壓降過高\n4. 交流線接線有誤，導致交流端電壓異常", "level": "Minor"},
             15: {"message": "PV Over Voltage", "description": "PV組串電壓（開路電壓）超出逆變器最大直流輸入電壓", "level": "Critical"},
             13: {"message": "Overtemp.", "description": "1. 機器長時間在高溫環境下運行\n2. 機器安裝環境不利於散熱（例如封閉空間）", "level": "Major"},
             10: {"message": "Ground I Fail", "description": "1. 交流測零地線接線有誤\n2. 在早晚或陰雨天氣，空氣濕度較高時可能引起報錯", "level": "Minor"},
@@ -468,7 +468,7 @@ def insert_equipment(data):
                 session.add(new_record)
                 session.commit()
 
-            # 假設 dataloggerSNs 是一組假數據
+            # 假設 dataloggerSNs 是一組數據
             dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
                              "33333333333333", "44444444444444", "55555555555555", 
                              "66666666666666", "77777777777777", "99999999999999", "88888888888888","777"]
@@ -630,7 +630,7 @@ def get_miaoli_energy_hour():
                 if results:
                     data=[]
                     data.append(results[0][2])
-                    # 計算小時發電量差異
+                    # 計算���時發電量差異
                     start_value = 0
                     end_value = 0
                     for i in range(0,len(results)):
@@ -1072,6 +1072,124 @@ def insert_day_weather():
         logging.debug(f"Error updating weather_data into EnergyDay: {e}")
 
 
+def process_data(datas):
+    with Session() as session:
+        for data in datas:
+            try:
+
+                new_record = models.EnergyHour(
+                    dataloggerSN=data[0],
+                    hour_generation=data[1],  # 使用已計算好的小時發電量
+                    modbus_addr=data[2],
+                    SN=data[3],
+                    timestamp=data[4]+timedelta(minutes=59)
+                )
+                session.add(new_record)
+                session.commit()
+                logging.info(f"Successfully inserted hour generation for {data[0]} at {data[4]}")
+            
+            except Exception as e:
+                logging.error(f"Error processing data: {e}")
+                session.rollback()
+                continue
+
+
+# 處理缺失數據的函數
+def handle_missing_data(missing_hours):
+    clean_data = []
+    with Session() as session:
+        for missing_hour in missing_hours:
+            try:
+                dataloggerSN = missing_hour[0]
+                modbus_addr = missing_hour[1]
+                timestamp = missing_hour[2]
+                start_time = timestamp
+                end_time = timestamp + timedelta(hours=1)
+                
+                results = session.query(models.SolarPreprocessData.dataloggerSN,
+                                        models.SolarPreprocessData.modbus_addr,
+                                        models.SolarPreprocessData.SN,
+                                        models.SolarPreprocessData.當日發電量,
+                                        models.SolarPreprocessData.time)\
+                                .filter(
+                                    models.SolarPreprocessData.dataloggerSN == dataloggerSN,
+                                    models.SolarPreprocessData.modbus_addr == modbus_addr,
+                                    models.SolarPreprocessData.time >= start_time,
+                                    models.SolarPreprocessData.time < end_time )\
+                                .order_by(desc(models.SolarPreprocessData.time))\
+                                .all()
+                if results:
+                    data = []
+                    data.append(dataloggerSN)
+                    # 計算小時發電量差異
+                    start_value = 0
+                    end_value = 0
+
+                    for i in range(0, len(results)):
+                        if results[i][3]:
+                            start_value = round(results[i][3], 3)
+                            break
+                    for i in range(len(results)-1, -1, -1):  # 修正這裡的範圍
+                        if results[i][3]:
+                            end_value = round(results[i][3], 3)
+                            break
+                    if start_value - end_value >= 0:
+                        data.append(start_value - end_value)
+                    else:
+                        data.append(0)
+                    data.append(modbus_addr)
+                    data.append(results[0][2])
+                    data.append(timestamp)
+                    clean_data.append(data)
+
+            except Exception as e:
+                print(f"Error querying SolarPreprocessData: {e}")
+                
+        # 將 process_data 移到迴圈外
+        if clean_data:
+            process_data(clean_data)
+
+def check_hour_generation():
+    # 使用 with 管理資料庫會話
+    with Session() as session:
+        try:
+            # 指定日期範圍
+            start_date = datetime(2024, 12, 12)
+            end_date = datetime(2024, 12, 12)
+            missing_hours = []
+
+            current_date = start_date
+            while current_date <= end_date:
+                print(current_date)# 每小時 06:00 到 06:59 (6:00 AM to 6:59 AM)
+                for hour in range(6, 18):  # Only the hour between 06:00 and 06:59
+                    # 生成每小時的開始時間和結束時間
+                    start_time = datetime.combine(current_date, datetime.min.time()) + timedelta(hours=hour, minutes=0)
+                    end_time = start_time + timedelta(minutes=60)  # ends at 06:59
+
+                    # 查詢該時間範圍內是否有數值，忽略秒數
+                    for modbus in range(1,22):
+                        exists = session.query(models.EnergyHour).filter(
+                            models.EnergyHour.timestamp >= start_time.replace(second=0, microsecond=0),
+                            models.EnergyHour.timestamp < end_time.replace(second=0, microsecond=0),
+                            models.EnergyHour.hour_generation.isnot(None),
+                            models.EnergyHour.dataloggerSN == '10132230202639',
+                            models.EnergyHour.modbus_addr == modbus,
+                        ).first()
+
+                        if not exists:
+                            missing_hours.append(['10132230202639',modbus,start_time])
+
+                current_date += timedelta(days=1)
+
+            print(missing_hours)# 如果有缺失，調用處理函數
+            if missing_hours:
+                handle_missing_data(missing_hours)
+            else:
+                print("All 6:00 AM to 6:59 AM minutes have valid data for 2024-12-16.")
+
+        except Exception as e:
+            print(f"Error: {e}")
+
 def is_within_restricted_hours():
     #Check if the current time is within restricted hours (18:00 - 6:00).
     hour = datetime.now().hour
@@ -1174,8 +1292,9 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
-#schedule.every(1).seconds.do(scheduled_miaoli_energy_hour)
-#schedule.every(1).seconds.do(scheduled_energy_day)
+#schedule.every(1).seconds.do(check_hour_generation)
+schedule.every().day.at("21:00").do(check_hour_generation)
+schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
