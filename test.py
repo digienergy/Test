@@ -501,7 +501,6 @@ def insert_miaoli_equipment(datas):
         with Session() as session:
             if datas: 
                 for data in datas:
-                    
                     new_record = models.Equipment(
                         dataloggerSN = data['dataloggerSN']  ,
                         temperature = data['temperature'] if data['temperature'] is not None else 0 ,
