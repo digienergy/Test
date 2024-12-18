@@ -441,7 +441,6 @@ def insert_equipment(data):
         # 使用 with 語法來管理 session
         with Session() as session:
             if data: 
-                 
                 record_dict = {
                     "dataloggerSN": data[0],
                     "temperature": data[1] if data[1] is not None else 0.0,
@@ -481,7 +480,7 @@ def insert_equipment(data):
                     "device_type": "INVERTER",
                     "modbus_addr": 1,
                     "SN": '6050KMTN22AR9999',
-                    "state1": random.randint(0, 4),
+                    "state1": random.randint(0, 3),
                     "alarm1": 0,
                     "timestamp": datetime.now(),
                 }
@@ -1153,42 +1152,81 @@ def check_hour_generation():
     # 使用 with 管理資料庫會話
     with Session() as session:
         try:
-            # 指定日期範圍
-            start_date = datetime(2024, 12, 12)
-            end_date = datetime(2024, 12, 12)
+            #start_date = datetime.today().date()
+            #end_date = datetime.today().date()
+            start_date = datetime(2024, 12, 17)
+            end_date = datetime(2024, 12, 17)
             missing_hours = []
 
             current_date = start_date
             while current_date <= end_date:
-                print(current_date)# 每小時 06:00 到 06:59 (6:00 AM to 6:59 AM)
+                # print(current_date)# 每小時 06:00 到 06:59 (6:00 AM to 6:59 AM)
                 for hour in range(6, 18):  # Only the hour between 06:00 and 06:59
                     # 生成每小時的開始時間和結束時間
                     start_time = datetime.combine(current_date, datetime.min.time()) + timedelta(hours=hour, minutes=0)
                     end_time = start_time + timedelta(minutes=60)  # ends at 06:59
 
                     # 查詢該時間範圍內是否有數值，忽略秒數
-                    for modbus in range(1,22):
+                    for modbus in range(1,2):
                         exists = session.query(models.EnergyHour).filter(
                             models.EnergyHour.timestamp >= start_time.replace(second=0, microsecond=0),
                             models.EnergyHour.timestamp < end_time.replace(second=0, microsecond=0),
                             models.EnergyHour.hour_generation.isnot(None),
-                            models.EnergyHour.dataloggerSN == '10132230202639',
+                            models.EnergyHour.dataloggerSN == '10132230202714',
                             models.EnergyHour.modbus_addr == modbus,
                         ).first()
 
                         if not exists:
-                            missing_hours.append(['10132230202639',modbus,start_time])
+                            missing_hours.append(['10132230202714',modbus,start_time])
 
                 current_date += timedelta(days=1)
-
-            print(missing_hours)# 如果有缺失，調用處理函數
+            logging.info("End in the check:",missing_hours)
             if missing_hours:
                 handle_missing_data(missing_hours)
             else:
-                print("All 6:00 AM to 6:59 AM minutes have valid data for 2024-12-16.")
+                logging.info("All 6:00 AM to 6:59 AM minutes have valid data for 2024-12-16.")
 
         except Exception as e:
-            print(f"Error: {e}")
+            logging.debug(f"Error: {e}")
+
+def check_day_generation():
+    # 使用 with 管理資料庫會話
+    with Session() as session:
+        try:
+            
+            start_date = datetime(2024, 12, 15)
+            end_date = datetime(2024, 12, 15)
+            missing_days = []
+
+            current_date = start_date
+            while current_date <= end_date:
+                start_time = datetime.combine(current_date, datetime.min.time()) + timedelta(hours=21)
+                end_time = start_time + timedelta(hours=1)  
+
+                # 查詢該時間範圍內是否有數值，忽略秒數
+                for modbus in range(1,22):
+                    
+                    exists = session.query(models.EnergyDay).filter(
+                            models.EnergyDay.timestamp >= start_time.replace(second=0, microsecond=0),
+                            models.EnergyDay.timestamp < end_time.replace(second=0, microsecond=0),
+                            models.EnergyDay.day_generation.isnot(None),
+                            models.EnergyDay.dataloggerSN == '10132230202639',
+                            models.EnergyDay.modbus_addr == modbus,
+                        ).first()
+
+                    if not exists:
+                        missing_days.append(['10132230202639',modbus,start_time])
+
+                current_date += timedelta(days=1)
+            
+            if missing_days:
+                handle_missing_day_data(missing_hours)
+                logging.info(len(missing_days))
+            else:
+                logging.info("All days have valid data ")
+
+        except Exception as e:
+            logging.debug(f" check_day_generation Error: {e}")
 
 def is_within_restricted_hours():
     #Check if the current time is within restricted hours (18:00 - 6:00).
@@ -1292,9 +1330,10 @@ schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
+schedule.every().day.at("20:00").do(check_hour_generation)
+schedule.every().day.at("21:00").do(check_day_generation)
 #schedule.every(1).seconds.do(check_hour_generation)
-schedule.every().day.at("21:00").do(check_hour_generation)
-schedule.every(1).seconds.do(scheduled_energy_day)
+#schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
