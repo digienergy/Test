@@ -114,7 +114,7 @@ def get_miaoli_energy_summary():
             latest_time_subquery = (
                 session.query(
                     models.SolarPreprocessData.modbus_addr,
-                    func.max(models.SolarPreprocessData.time).label("latest_time")
+                    func.max(models.SolarPreprocessData.timestamp).label("latest_time")
                 )
                 .filter(models.SolarPreprocessData.dataloggerSN == '10132230202639')
                 .group_by(models.SolarPreprocessData.modbus_addr)
@@ -123,7 +123,7 @@ def get_miaoli_energy_summary():
 
             results = (
                 session.query(
-                    models.SolarPreprocessData.time,
+                    models.SolarPreprocessData.timestamp,
                     func.coalesce(models.SolarPreprocessData.累積發電量,0).label('累積發電量'),
                     func.coalesce(models.SolarPreprocessData.當日發電量,0).label('當日發電量'),
                     models.SolarPreprocessData.dataloggerSN,
@@ -142,7 +142,7 @@ def get_miaoli_energy_summary():
                 .join(
                     latest_time_subquery,
                     (models.SolarPreprocessData.modbus_addr == latest_time_subquery.c.modbus_addr)
-                    & (models.SolarPreprocessData.time == latest_time_subquery.c.latest_time)
+                    & (models.SolarPreprocessData.timestamp == latest_time_subquery.c.latest_time)
                 )
                 .distinct()  
                 .all()
@@ -379,11 +379,11 @@ def get_miaoli_equipment():
                     models.SolarPreprocessData.SN,
                     models.SolarPreprocessData.狀態1,
                     models.SolarPreprocessData.告警1,
-                    models.SolarPreprocessData.time,
+                    models.SolarPreprocessData.timestamp,
                 )
                 .filter(models.SolarPreprocessData.dataloggerSN == '10132230202639')
                 .distinct(models.SolarPreprocessData.modbus_addr)
-                .order_by(models.SolarPreprocessData.modbus_addr, models.SolarPreprocessData.time.desc())
+                .order_by(models.SolarPreprocessData.modbus_addr, models.SolarPreprocessData.timestamp.desc())
             ).all()
             
             for i in query:
