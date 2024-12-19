@@ -1091,8 +1091,6 @@ def process_data(datas):
                 session.rollback()
                 continue
 
-
-# 處理缺失數據的函數
 def handle_missing_data(missing_hours):
     clean_data = []
     with Session() as session:
@@ -1188,13 +1186,82 @@ def check_hour_generation():
         except Exception as e:
             logging.debug(f"Error: {e}")
 
+def process_day_data(datas):
+    with Session() as session:
+        for data in datas:
+            try:
+                print(data)
+                new_record = models.EnergyDay(
+                    dataloggerSN=data[0],
+                    modbus_addr=data[1],  # 使用已計算好的小時發電量
+                    SN=data[2],
+                    day_generation=data[3],
+                    timestamp=data[4].replace(hour=21, minute=0, second=0, microsecond=0)
+                )
+
+                session.add(new_record)
+                session.commit()
+                logging.info(f"Successfully inserted day generation for {data[0]} at {data[4]}")
+            
+            except Exception as e:
+                logging.error(f"Error processing data: {e}")
+                session.rollback()
+                continue
+
+def handle_missing_day_data(missing_days):
+    clean_data = []
+    with Session() as session:
+        for missing_day in missing_days:
+            try:
+                dataloggerSN = missing_day[0]
+                modbus_addr = missing_day[1]
+                timestamp = missing_day[2]
+                start_time = timestamp
+                end_time = timestamp + timedelta(days=1)
+                
+                results = (
+                    session.query(
+                        models.SolarPreprocessData.dataloggerSN,
+                        models.SolarPreprocessData.modbus_addr,
+                        models.SolarPreprocessData.SN,
+                        models.SolarPreprocessData.當日發電量,
+                        models.SolarPreprocessData.time,
+                    )
+                    .filter(
+                        models.SolarPreprocessData.dataloggerSN == dataloggerSN,
+                        models.SolarPreprocessData.modbus_addr == modbus_addr,
+                        models.SolarPreprocessData.time >= start_time,
+                        models.SolarPreprocessData.time < end_time,
+                        models.SolarPreprocessData.當日發電量 != 0,  # 當日發電量不為 0
+                    )
+                    .order_by(desc(models.SolarPreprocessData.time))  # 按時間倒序排列
+                    .limit(1)  # 只取最後一筆資料
+                    .all()
+                )
+                if results:
+                    for result in results :
+                        data = []
+                        data.append(dataloggerSN)
+                        data.append(modbus_addr)
+                        data.append(result[2])
+                        data.append(result[3])
+                        data.append(result[4])
+                        clean_data.append(data)
+
+            except Exception as e:
+                print(f"Error querying SolarPreprocessData: {e}")
+           
+        # 將 process_data 移到迴圈外
+        #print(clean_data)
+        if clean_data:
+             process_day_data(clean_data)
+
 def check_day_generation():
     # 使用 with 管理資料庫會話
     with Session() as session:
         try:
-            
-            start_date = datetime(2024, 12, 15)
-            end_date = datetime(2024, 12, 15)
+            start_date = datetime(2024, 12, 1)
+            end_date = datetime(2024, 12, 18)
             missing_days = []
 
             current_date = start_date
@@ -1203,24 +1270,25 @@ def check_day_generation():
                 end_time = start_time + timedelta(hours=1)  
 
                 # 查詢該時間範圍內是否有數值，忽略秒數
-                for modbus in range(1,22):
+                for modbus in range(1,2):
                     
                     exists = session.query(models.EnergyDay).filter(
                             models.EnergyDay.timestamp >= start_time.replace(second=0, microsecond=0),
                             models.EnergyDay.timestamp < end_time.replace(second=0, microsecond=0),
                             models.EnergyDay.day_generation.isnot(None),
-                            models.EnergyDay.dataloggerSN == '10132230202639',
+                            models.EnergyDay.dataloggerSN == '10132230202714',
                             models.EnergyDay.modbus_addr == modbus,
                         ).first()
 
                     if not exists:
-                        missing_days.append(['10132230202639',modbus,start_time])
+                        missing_days.append(['10132230202714',modbus,start_time])
 
                 current_date += timedelta(days=1)
             
             if missing_days:
-                handle_missing_day_data(missing_hours)
-                logging.info(len(missing_days))
+                #print(missing_days)
+                #logging.info(len(missing_days))
+                handle_missing_day_data(missing_days)
             else:
                 logging.info("All days have valid data ")
 
@@ -1330,8 +1398,8 @@ schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
 schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("20:00").do(check_hour_generation)
-schedule.every().day.at("21:00").do(check_day_generation)
-#schedule.every(1).seconds.do(check_hour_generation)
+schedule.every().day.at("21:10").do(check_day_generation)
+#schedule.every(1).seconds.do(scheduled_miaoli_equipment)
 #schedule.every(1).seconds.do(scheduled_energy_day)
 schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
