@@ -992,30 +992,35 @@ def update_hour_energy():
             data = response.json()  # 將回應轉為 JSON 格式
             weather = data["records"]["Station"][181]["WeatherElement"]["Weather"]
             weather = weather_exchange(weather)
+            start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)  # 今天 00:00:00
+            end_of_day = start_of_day + timedelta(days=1) - timedelta(seconds=1)  # 今天 23:59:59
 
-            # 使用 with 语法来管理数据库会话
+            print(weather)
             with Session() as session:
                 for dataloggerSN in dataloggerSNs:
-                    
                     if dataloggerSN == "10132230202639" :
                         records = session.query(models.EnergyHour) \
                                     .filter(models.EnergyHour.dataloggerSN == "10132230202639") \
-                                    .distinct()\
-                                    .order_by(desc(models.EnergyHour.timestamp))\
+                                    .filter(models.EnergyHour.timestamp >= start_of_day)\
+                                    .filter(models.EnergyHour.timestamp <= end_of_day)\
+                                    .order_by(models.EnergyHour.modbus_addr,desc(models.EnergyHour.timestamp))\
+                                    .distinct(models.EnergyHour.modbus_addr)\
                                     .all()
                             
-                        for record in records :
+                        for record in records:
+                            # Each record is the full EnergyHour object
                             record.weather = weather
                             session.commit() 
                     else:
-                        record = session.query(models.EnergyHour). \
-                                        filter(models.EnergyHour.dataloggerSN == dataloggerSN). \
-                                        order_by(desc(models.EnergyHour.timestamp)).first()
-                        
+                        record = session.query(models.EnergyHour)\
+                                        .filter(models.EnergyHour.dataloggerSN == dataloggerSN) \
+                                        .filter(models.EnergyHour.timestamp >= start_of_day)\
+                                        .filter(models.EnergyHour.timestamp <= end_of_day)\
+                                        .order_by(desc(models.EnergyHour.timestamp)).first()
                         if record:
                             record.weather = weather
                             session.commit()
-
+            time.sleep(10)
             logging.info(f"Successful update weather into EnergyHour")
        
     except Exception as e:
@@ -1399,13 +1404,13 @@ def scheduled_insert_day_weather():
 schedule.every(60).seconds.do(scheduled_equipment)  # 60 秒執行 
 schedule.every(60).seconds.do(scheduled_energy_summary)  # 60 秒執行
 schedule.every(300).seconds.do(scheduled_miaoli_energy_summary)
-schedule.every(300).seconds.do(scheduled_miaoli_equipment)    
+schedule.every(300).seconds.do(scheduled_miaoli_equipment) 
+schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)   
 schedule.every().hour.at(":59").do(scheduled_energy_hour)
 schedule.every().day.at("20:00").do(check_hour_generation)
 schedule.every().day.at("21:10").do(check_day_generation)
-#schedule.every(1).seconds.do(scheduled_miaoli_equipment)
+#schedule.every(1).seconds.do(scheduled_energy_hour)
 #schedule.every(1).seconds.do(scheduled_energy_day)
-schedule.every().hour.at(":59").do(scheduled_miaoli_energy_hour)
 schedule.every().day.at("21:00").do(scheduled_miaoli_energy_day)
 schedule.every().day.at("21:00").do(scheduled_energy_day)
 schedule.every().day.at("00:10").do(scheduled_get_day_weather)  # 60 秒執行
