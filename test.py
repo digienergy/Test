@@ -1007,13 +1007,14 @@ def update_hour_energy():
                         for record in records :
                             record.weather = weather
                             session.commit() 
-                    record = session.query(models.EnergyHour). \
-                                    filter(models.EnergyHour.dataloggerSN == dataloggerSN). \
-                                    order_by(desc(models.EnergyHour.timestamp)).first()
-                    
-                    if record:
-                        record.weather = weather
-                        session.commit()
+                    else:
+                        record = session.query(models.EnergyHour). \
+                                        filter(models.EnergyHour.dataloggerSN == dataloggerSN). \
+                                        order_by(desc(models.EnergyHour.timestamp)).first()
+                        
+                        if record:
+                            record.weather = weather
+                            session.commit()
 
             logging.info(f"Successful update weather into EnergyHour")
        
@@ -1047,22 +1048,23 @@ def insert_day_weather():
         with Session() as session:
             for dataloggerSN in dataloggerSNs:
                 if dataloggerSN == "10132230202639" :
-                        records = session.query(models.EnergyHour) \
-                                    .filter(models.EnergyHour.dataloggerSN == "10132230202639") \
+                        records = session.query(models.EnergyDay) \
+                                    .filter(models.EnergyDay.dataloggerSN == "10132230202639") \
                                     .distinct()\
-                                    .order_by(desc(models.EnergyHour.timestamp))\
+                                    .order_by(desc(models.EnergyDay.timestamp))\
                                     .all()
                             
                         for record in records :
-                            record.weather = weather
+                            record.weather = weather_data   
                             session.commit() 
-                record = session.query(models.EnergyDay). \
-                                filter(models.EnergyDay.dataloggerSN == dataloggerSN). \
-                                order_by(desc(models.EnergyDay.timestamp)).first()
+                else:
+                    record = session.query(models.EnergyDay). \
+                                    filter(models.EnergyDay.dataloggerSN == dataloggerSN). \
+                                    order_by(desc(models.EnergyDay.timestamp)).first()
                 
-                if record:
-                    record.weather = weather_data
-                    session.commit()
+                    if record:
+                        record.weather = weather_data
+                        session.commit()
 
         logging.info("Successful update weather_data into EnergyDay")
 
@@ -1149,10 +1151,10 @@ def check_hour_generation():
     # 使用 with 管理資料庫會話
     with Session() as session:
         try:
-            #start_date = datetime.today().date()
-            #end_date = datetime.today().date()
-            start_date = datetime(2024, 12, 17)
-            end_date = datetime(2024, 12, 17)
+            start_date = datetime.today().date()
+            end_date = datetime.today().date()
+            #start_date = datetime(2024, 12, 17)
+            #end_date = datetime(2024, 12, 17)
             missing_hours = []
 
             current_date = start_date
@@ -1190,7 +1192,7 @@ def process_day_data(datas):
     with Session() as session:
         for data in datas:
             try:
-                print(data)
+                #print(data)
                 new_record = models.EnergyDay(
                     dataloggerSN=data[0],
                     modbus_addr=data[1],  # 使用已計算好的小時發電量
@@ -1260,8 +1262,10 @@ def check_day_generation():
     # 使用 with 管理資料庫會話
     with Session() as session:
         try:
-            start_date = datetime(2024, 12, 1)
-            end_date = datetime(2024, 12, 18)
+            start_date = datetime.today().date()
+            end_date = datetime.today().date()
+            #start_date = datetime(2024, 12, 1)
+            #end_date = datetime(2024, 12, 18)
             missing_days = []
 
             current_date = start_date
@@ -1298,7 +1302,7 @@ def check_day_generation():
 def is_within_restricted_hours():
     #Check if the current time is within restricted hours (18:00 - 6:00).
     hour = datetime.now().hour
-    if hour <= 6 or hour >= 18:
+    if hour <= 5 or hour >= 18:
         return True
     return False
 
