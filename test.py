@@ -995,7 +995,6 @@ def update_hour_energy():
             start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)  # 今天 00:00:00
             end_of_day = start_of_day + timedelta(days=1) - timedelta(seconds=1)  # 今天 23:59:59
 
-            print(weather)
             with Session() as session:
                 for dataloggerSN in dataloggerSNs:
                     if dataloggerSN == "10132230202639" :
@@ -1048,20 +1047,38 @@ def insert_day_weather():
                      "77777777777777", "99999999999999", "88888888888888", "10132230202714","777"]
 
     global weather_data   
-
+    
     try:
         with Session() as session:
             for dataloggerSN in dataloggerSNs:
                 if dataloggerSN == "10132230202639" :
-                        records = session.query(models.EnergyDay) \
-                                    .filter(models.EnergyDay.dataloggerSN == "10132230202639") \
-                                    .distinct()\
-                                    .order_by(desc(models.EnergyDay.timestamp))\
-                                    .all()
-                            
+                        latest_records_subquery = (
+                            session.query(
+                                models.EnergyDay.modbus_addr,
+                                func.max(models.EnergyDay.timestamp).label("latest_timestamp"),
+                            )
+                            .filter(models.EnergyDay.dataloggerSN == "10132230202639")
+                            .group_by(models.EnergyDay.modbus_addr)
+                            .subquery()
+                        )
+
+                        # 主查詢：通過最新 timestamp 獲取完整記錄
+                        records = (
+                            session.query(models.EnergyDay)
+                            .join(
+                                latest_records_subquery,
+                                (models.EnergyDay.modbus_addr == latest_records_subquery.c.modbus_addr) &
+                                (models.EnergyDay.timestamp == latest_records_subquery.c.latest_timestamp),
+                            )
+                            .filter(models.EnergyDay.dataloggerSN == "10132230202639")  # 再次確保 dataloggerSN 條件
+                            .order_by(models.EnergyDay.modbus_addr)  # 可根據需求排序
+                            .all()
+                        )
+
                         for record in records :
+
                             record.weather = weather_data   
-                            session.commit() 
+                        session.commit() 
                 else:
                     record = session.query(models.EnergyDay). \
                                     filter(models.EnergyDay.dataloggerSN == dataloggerSN). \
