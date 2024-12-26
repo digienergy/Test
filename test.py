@@ -251,8 +251,6 @@ def insert_energy_summary(data):
         if data:
             # 使用 with 語法管理 Session
             with Session() as session:
-                for d in data:
-                    print(d)
                 new_record = models.EnergySummary(
                     total_generation=round(data[1], 2) if data[1] is not None else 0.0,
                     daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
