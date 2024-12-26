@@ -72,16 +72,24 @@ def get_energy_summary():
                 models.SolarPreprocessData.dataloggerSN,
                 models.SolarPreprocessData.modbus_addr,
                 models.SolarPreprocessData.有功功率,
+                models.SolarPreprocessData.電網A相電壓,
+                models.SolarPreprocessData.電網B相電壓,
+                models.SolarPreprocessData.電網C相電壓,
+                models.SolarPreprocessData.電網A相電流,
+                models.SolarPreprocessData.電網B相電流,
+                models.SolarPreprocessData.電網C相電流,
                 models.SolarPreprocessData.MPPT1輸入電壓,
                 models.SolarPreprocessData.MPPT2輸入電壓,
                 models.SolarPreprocessData.MPPT3輸入電壓,
-                models.SolarPreprocessData.MPPT4輸入電壓
+                models.SolarPreprocessData.MPPT1輸入電流,
+                models.SolarPreprocessData.MPPT2輸入電流,
+                models.SolarPreprocessData.MPPT3輸入電流
             ).filter(models.SolarPreprocessData.dataloggerSN == '10132230202714')
             .order_by(models.SolarPreprocessData.time.desc())
             .first())  # 取得最新一筆資料
-
+            
             result = list(results)
-
+            
             standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(results[1])
             result.append(standard_coal)
             result.append(co2_reduction)
@@ -95,16 +103,17 @@ def get_energy_summary():
 
 def calculate_ac_reactivate_power(data):
 
-    voltage_a = data.pop(9)
-    voltage_b = data.pop(9)
-    voltage_c = data.pop(9)
-    current_a = data.pop(9)
-    current_b = data.pop(9)
-    current_c = data.pop(9)
+    voltage_a = data[9]
+    voltage_b = data[9]
+    voltage_c = data[9]
+    current_a = data[9]
+    current_b = data[9]
+    current_c = data[9]
     ac_reactive_power = round(voltage_a*current_a+voltage_b*current_b+voltage_c*current_c,2)/1000
     data[5] = ac_reactive_power
 
     return data
+
 def get_miaoli_energy_summary():
     clean_data = []
     try:
@@ -132,6 +141,9 @@ def get_miaoli_energy_summary():
                     func.coalesce(models.SolarPreprocessData.MPPT1輸入電壓,0).label('MPPT1輸入電壓'),
                     func.coalesce(models.SolarPreprocessData.MPPT2輸入電壓,0).label('MPPT2輸入電壓'),
                     func.coalesce(models.SolarPreprocessData.MPPT3輸入電壓,0).label('MPPT3輸入電壓'),
+                    func.coalesce(models.SolarPreprocessData.MPPT1輸入電流,0).label('MPPT1輸入電流'),
+                    func.coalesce(models.SolarPreprocessData.MPPT2輸入電流,0).label('MPPT2輸入電流'),
+                    func.coalesce(models.SolarPreprocessData.MPPT3輸入電流,0).label('MPPT3輸入電流'),
                     func.coalesce(models.SolarPreprocessData.電網A相電壓,0).label('電網A相電壓'),
                     func.coalesce(models.SolarPreprocessData.電網B相電壓,0).label('電網B相電壓'),
                     func.coalesce(models.SolarPreprocessData.電網C相電壓,0).label('電網C相電壓'),
@@ -149,23 +161,21 @@ def get_miaoli_energy_summary():
             )
 
             for i in results :
-
                 i_list = list(i)
                 data = calculate_ac_reactivate_power(i_list)
-
-                if i_list[2] :
-                    standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(i[2])
+                if data[2] :
+                    standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(data[2])
                 else:
-                    i_list[2]=0
-                    standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(i[2])
-                
-                i_list.append(standard_coal)
-                i_list.append(co2_reduction)
-                i_list.append(equivalent_trees)
-                
-        logging.info("successfully got record from preprocess_main_data")
+                    data[2]=0
+                    standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(data[2])
 
-        return results
+                data.append(standard_coal)
+                data.append(co2_reduction)
+                data.append(equivalent_trees)
+                clean_data.append(data)    
+        logging.info("successfully got record from preprocess_main_data")
+   
+        return clean_data
 
     except Exception as e:
         logging.debug(f"Error getting record from preprocess_main_data: {e}")
@@ -176,22 +186,32 @@ def insert_miaoli_energy_summary(datas):
                    
             with Session() as session:
                 for data in datas:
-                    
-                    new_record = models.EnergySummary(
-                        total_generation=round(data[1], 2) if data[1] is not None else 0.0,
-                        daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
-                        dataloggerSN=data[3],
-                        modbus_addr=data[4],
-                        ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
-                        mppt1=round(data[6], 2) if data[6] is not None else 0.0,
-                        mppt2=round(data[7], 2) if data[7] is not None else 0.0,
-                        mppt3=round(data[8], 2) if data[8] is not None else 0.0,
-                        standard_coal_saved=data[9],
-                        co2_reduction=data[10],
-                        equivalent_trees=data[11],
-                        timestamp=data[0]
-                    )
-                    session.add(new_record)
+                    for i in data:
+                        
+                        new_record = models.EnergySummary(
+                            total_generation=round(data[1], 2) if data[1] is not None else 0.0,
+                            daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
+                            dataloggerSN=data[3],
+                            modbus_addr=data[4],
+                            ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
+                            mppt1_v=round(data[6], 2) if data[6] is not None else 0.0,
+                            mppt2_v=round(data[7], 2) if data[7] is not None else 0.0,
+                            mppt3_v=round(data[8], 2) if data[8] is not None else 0.0,
+                            mppt1_c=round(data[9], 2) if data[9] is not None else 0.0,
+                            mppt2_c=round(data[10], 2) if data[10] is not None else 0.0,
+                            mppt3_c=round(data[11], 2) if data[11] is not None else 0.0,
+                            grid_a_v=round(data[12], 2) if data[12] is not None else 0.0,
+                            grid_b_v=round(data[13], 2) if data[13] is not None else 0.0,
+                            grid_c_v=round(data[14], 2) if data[14] is not None else 0.0,
+                            grid_a_c=round(data[15], 2) if data[15] is not None else 0.0,
+                            grid_b_c=round(data[16], 2) if data[16] is not None else 0.0,
+                            grid_c_c=round(data[17], 2) if data[17] is not None else 0.0,
+                            standard_coal_saved=data[9],
+                            co2_reduction=data[10],
+                            equivalent_trees=data[11],
+                            timestamp=data[0]
+                        )
+                        session.add(new_record)
                     session.commit()
         else:
             # 使用 with 語法管理 Session
@@ -233,62 +253,31 @@ def insert_energy_summary(data):
         if data:
             # 使用 with 語法管理 Session
             with Session() as session:
-                
+                for d in data:
+                    print(d)
                 new_record = models.EnergySummary(
                     total_generation=round(data[1], 2) if data[1] is not None else 0.0,
                     daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
                     dataloggerSN=data[3],
                     modbus_addr=data[4],
                     ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
-                    mppt1=round(data[6], 2) if data[6] is not None else 0.0,
-                    mppt2=round(data[7], 2) if data[7] is not None else 0.0,
-                    mppt3=round(data[8], 2) if data[8] is not None else 0.0,
-                    mppt4=round(data[9], 2) if data[9] is not None else 0.0,
-                    standard_coal_saved=data[10] ,
-                    co2_reduction=data[11],
-                    equivalent_trees=data[12],
+                    grid_a_v=round(data[6], 2) if data[6] is not None else 0.0,
+                    grid_b_v=round(data[7], 2) if data[7] is not None else 0.0,
+                    grid_c_v=round(data[8], 2) if data[8] is not None else 0.0,
+                    grid_a_c=round(data[9], 2) if data[9] is not None else 0.0,
+                    grid_b_c=round(data[10], 2) if data[10] is not None else 0.0,
+                    grid_c_c=round(data[11], 2) if data[11] is not None else 0.0,
+                    mppt1_v=round(data[12], 2) if data[12] is not None else 0.0,
+                    mppt2_v=round(data[13], 2) if data[13] is not None else 0.0,
+                    mppt3_v=round(data[14], 2) if data[14] is not None else 0.0,
+                    mppt1_c=round(data[15], 2) if data[15] is not None else 0.0,
+                    mppt2_c=round(data[16], 2) if data[16] is not None else 0.0,
+                    mppt3_c=round(data[17], 2) if data[17] is not None else 0.0,
+                    standard_coal_saved=data[18] ,
+                    co2_reduction=data[19],
+                    equivalent_trees=data[20],
                     timestamp=data[0]
                 )
-                
-                session.add(new_record)
-                session.commit()
-        else:
-            # 使用 with 語法管理 Session
-            with Session() as session:
-                new_record = models.EnergySummary(
-                    timestamp=datetime.now()
-                )
-                session.add(new_record)
-                session.commit()
-
-        # 以下插入 fake 資料
-        dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111",
-                         "33333333333333", "44444444444444", "55555555555555",
-                         "66666666666666", "77777777777777", "99999999999999",
-                         "88888888888888","777"]
-        fake_total_generation = random.randint(35266, 40000)
-
-        standard_coal, co2_reduction, equivalent_trees = calculate_environmental_benefits(fake_total_generation)
-
-        # 使用 with 語法管理 Session
-        with Session() as session:
-            for dataloggerSN in dataloggerSNs:
-                new_record = models.EnergySummary(
-                    dataloggerSN=dataloggerSN,
-                    daily_generation=random.randint(50, 100),
-                    total_generation=round(fake_total_generation, 2),
-                    modbus_addr=1,
-                    mppt1=random.randint(550, 600),
-                    mppt2=random.randint(550, 600),
-                    mppt3=random.randint(550, 600),
-                    mppt4=random.randint(550, 600),
-                    ac_reactive_power=random.randint(1, 10),
-                    standard_coal_saved=standard_coal,
-                    co2_reduction=co2_reduction,
-                    equivalent_trees=equivalent_trees,
-                    timestamp=datetime.now()
-                )
-
                 session.add(new_record)
                 session.commit()
 
@@ -1438,6 +1427,7 @@ schedule.every().day.at("21:00").do(
 # 主程式：持續執行排程
 if __name__ == "__main__":
     logging.info("Scheduler started.")
+
     while True:
         schedule.run_pending()
         time.sleep(1)
