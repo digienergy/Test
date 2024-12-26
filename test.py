@@ -185,7 +185,9 @@ def insert_miaoli_energy_summary(datas):
         if datas:
                    
             with Session() as session:
-                for data in datas:  
+                #print(len(datas))
+                # for data in datas:  
+                #     print(data)
                     new_record = models.EnergySummary(
                         total_generation=round(data[1], 2) if data[1] is not None else 0.0,
                         daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
@@ -210,7 +212,7 @@ def insert_miaoli_energy_summary(datas):
                         timestamp=data[0]
                     )
                     session.add(new_record)
-                session.commit()
+                    session.commit()
         else:
             # 使用 with 語法管理 Session
             with Session() as session:
@@ -1423,7 +1425,6 @@ schedule.every().day.at("21:00").do(
 # 主程式：持續執行排程
 if __name__ == "__main__":
     logging.info("Scheduler started.")
-
     while True:
         schedule.run_pending()
         time.sleep(1)
