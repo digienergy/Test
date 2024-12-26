@@ -455,28 +455,6 @@ def insert_equipment(data):
                 session.commit()
 
             # 假設 dataloggerSNs 是一組數據
-            dataloggerSNs = ["00000000000002", "00000000000001", "00000000000000", "11111111111111", 
-                             "33333333333333", "44444444444444", "55555555555555", 
-                             "66666666666666", "77777777777777", "99999999999999", "88888888888888","777"]
-
-            for dataloggerSN in dataloggerSNs:
-                record_dict = {
-                    "dataloggerSN": dataloggerSN,
-                    "temperature": random.randint(20, 30),
-                    "brand": "GDW_MT",
-                    "device_type": "INVERTER",
-                    "modbus_addr": 1,
-                    "SN": '6050KMTN22AR9999',
-                    "state1": random.randint(0, 3),
-                    "alarm1": 0,
-                    "timestamp": datetime.now(),
-                }
-                if record_dict["state1"] != 1:
-                    record_dict["alarm1"] = 1
-                    record_dict = state_and_alarm(record_dict)
-                new_record = models.Equipment(**record_dict)
-                session.add(new_record)
-                session.commit()
             
             logging.info(f"Inserting into the equipment table")
 
