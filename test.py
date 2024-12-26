@@ -185,34 +185,32 @@ def insert_miaoli_energy_summary(datas):
         if datas:
                    
             with Session() as session:
-                for data in datas:
-                    for i in data:
-                        
-                        new_record = models.EnergySummary(
-                            total_generation=round(data[1], 2) if data[1] is not None else 0.0,
-                            daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
-                            dataloggerSN=data[3],
-                            modbus_addr=data[4],
-                            ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
-                            mppt1_v=round(data[6], 2) if data[6] is not None else 0.0,
-                            mppt2_v=round(data[7], 2) if data[7] is not None else 0.0,
-                            mppt3_v=round(data[8], 2) if data[8] is not None else 0.0,
-                            mppt1_c=round(data[9], 2) if data[9] is not None else 0.0,
-                            mppt2_c=round(data[10], 2) if data[10] is not None else 0.0,
-                            mppt3_c=round(data[11], 2) if data[11] is not None else 0.0,
-                            grid_a_v=round(data[12], 2) if data[12] is not None else 0.0,
-                            grid_b_v=round(data[13], 2) if data[13] is not None else 0.0,
-                            grid_c_v=round(data[14], 2) if data[14] is not None else 0.0,
-                            grid_a_c=round(data[15], 2) if data[15] is not None else 0.0,
-                            grid_b_c=round(data[16], 2) if data[16] is not None else 0.0,
-                            grid_c_c=round(data[17], 2) if data[17] is not None else 0.0,
-                            standard_coal_saved=data[9],
-                            co2_reduction=data[10],
-                            equivalent_trees=data[11],
-                            timestamp=data[0]
-                        )
-                        session.add(new_record)
-                    session.commit()
+                for data in datas:  
+                    new_record = models.EnergySummary(
+                        total_generation=round(data[1], 2) if data[1] is not None else 0.0,
+                        daily_generation=round(data[2], 2) if data[2] is not None else 0.0,
+                        dataloggerSN=data[3],
+                        modbus_addr=data[4],
+                        ac_reactive_power=round(data[5], 2) if data[5] is not None else 0.0,
+                        mppt1_v=round(data[6], 2) if data[6] is not None else 0.0,
+                        mppt2_v=round(data[7], 2) if data[7] is not None else 0.0,
+                        mppt3_v=round(data[8], 2) if data[8] is not None else 0.0,
+                        mppt1_c=round(data[9], 2) if data[9] is not None else 0.0,
+                        mppt2_c=round(data[10], 2) if data[10] is not None else 0.0,
+                        mppt3_c=round(data[11], 2) if data[11] is not None else 0.0,
+                        grid_a_v=round(data[12], 2) if data[12] is not None else 0.0,
+                        grid_b_v=round(data[13], 2) if data[13] is not None else 0.0,
+                        grid_c_v=round(data[14], 2) if data[14] is not None else 0.0,
+                        grid_a_c=round(data[15], 2) if data[15] is not None else 0.0,
+                        grid_b_c=round(data[16], 2) if data[16] is not None else 0.0,
+                        grid_c_c=round(data[17], 2) if data[17] is not None else 0.0,
+                        standard_coal_saved=data[9],
+                        co2_reduction=data[10],
+                        equivalent_trees=data[11],
+                        timestamp=data[0]
+                    )
+                    session.add(new_record)
+                session.commit()
         else:
             # 使用 with 語法管理 Session
             with Session() as session:
