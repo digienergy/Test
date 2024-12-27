@@ -115,7 +115,7 @@ class EnergySummary(Base):
     equivalent_trees = Column(Double, nullable=True)
     standard_coal_saved = Column(Double, nullable=True)
     co2_reduction = Column(Double, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=True)
+    timestamp = Column(DateTime, default=datetime.now, nullable=True)
 
     def __repr__(self):
         return f"<EnergySummary(id={self.id})>"

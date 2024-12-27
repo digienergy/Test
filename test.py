@@ -209,7 +209,6 @@ def insert_miaoli_energy_summary(datas):
                         standard_coal_saved=data[9],
                         co2_reduction=data[10],
                         equivalent_trees=data[11],
-                        timestamp=data[0]
                     )
                     session.add(new_record)
                     session.commit()
@@ -437,7 +436,6 @@ def insert_equipment(data):
                     "SN": data[5],
                     "state1": data[6],
                     "alarm1": data[7],
-                    "timestamp": data[8],
                 }
                 if record_dict["state1"] == 2:
                     record_dict = state_and_alarm(record_dict)
@@ -475,7 +473,6 @@ def insert_miaoli_equipment(datas):
                         state1 = data['state1'] if data['state1'] is not None else 1,
                         alarm1 = data['state1'] if data['state1'] is not None else 0,
                         SN = data['SN'],
-                        timestamp=data['timestamp']
                     )    
 
                     session.add(new_record)
@@ -534,14 +531,12 @@ def insert_energy_hour(data):
                     dataloggerSN=data[0],
                     hour_generation=round(data[1], 2) if data[1] is not None else 0.0,
                     modbus_addr=data[2],
-                    timestamp=datetime.now()
                 )
             else:
                 new_record = models.EnergyHour(
                     dataloggerSN='10132230202714',
                     hour_generation=0,
                     modbus_addr=1,
-                    timestamp=datetime.now()
                 )
 
             session.add(new_record)
@@ -556,7 +551,6 @@ def insert_energy_hour(data):
                     dataloggerSN=dataloggerSN,
                     hour_generation=random.randint(0, 20),
                     modbus_addr=1,
-                    timestamp=datetime.now()
                 )
                 session.add(new_record)
 
@@ -632,7 +626,6 @@ def insert_miaoli_energy_hour(datas):
                         hour_generation=round(data[1], 2) if data[1] is not None else 0.0,
                         modbus_addr=data[2],
                         SN = data[3],
-                        timestamp=datetime.now()
                     )
                     session.add(new_record)
                     session.commit()
@@ -643,7 +636,6 @@ def insert_miaoli_energy_hour(datas):
                         hour_generation=0,
                         modbus_addr = modbus_addr,
                         SN = '',
-                        timestamp=datetime.now()
                     )
                     session.add(new_record)
                     session.commit()
@@ -714,7 +706,6 @@ def insert_miaoli_energy_day(datas):
                         day_generation=round(data[1], 2) if data[1] is not None else 0.0,
                         modbus_addr=data[2],
                         SN=data[3],
-                        timestamp=datetime.now()
                     )
                     session.add(new_record)
                     session.commit()
@@ -724,7 +715,6 @@ def insert_miaoli_energy_day(datas):
                         dataloggerSN='10132230202639',
                         day_generation=0,
                         modbus_addr=modbus_addr,
-                        timestamp=datetime.now()
                     )
                     session.add(new_record)
                     session.commit()
@@ -792,7 +782,7 @@ def insert_energy_day(data):
                     day_generation=round(data[1], 2) if data[1] is not None else 0.0,
                     modbus_addr=data[2],
                     SN=data[3],
-                    timestamp=datetime.now()
+
                 )
             else:
                 new_record = models.EnergyDay(
@@ -800,7 +790,6 @@ def insert_energy_day(data):
                     day_generation=0,
                     modbus_addr=1,
                     SN='6050KMTN22AR0010',
-                    timestamp=datetime.now()
                 )
 
             session.add(new_record)
@@ -817,8 +806,7 @@ def insert_energy_day(data):
                     dataloggerSN=dataloggerSN,
                     day_generation=random.randint(100, 200),
                     modbus_addr=1,
-                    SN='6050KMTN22AR0010',
-                    timestamp=datetime.now()
+                    SN='6050KMTN22AR0010'
                 )
                 session.add(new_record)
                 session.commit()
@@ -897,8 +885,7 @@ def insert_energy_monthly(data_list):
                     new_record = models.EnergyMonth(
                         dataloggerSN=data['dataloggerSN'],
                         month_generation=round(data['cumulative_energy'], 2) ,
-                        modbus_addr=data['modbus_addr'],
-                        timestamp=datetime.now()
+                        modbus_addr=data['modbus_addr']
                     )
                     session.add(new_record)
             else:
@@ -921,7 +908,6 @@ def insert_energy_monthly(data_list):
                     dataloggerSN=dataloggerSN,
                     month_generation=round(random.uniform(500, 1000), 2),  # 模拟生成 1000 到 5000 范围的随机数
                     modbus_addr=1,  # 模拟生成 1 到 10 范围的随机 Modbus 地址
-                    timestamp=datetime.now()
                 )
                 session.add(new_record)
 
