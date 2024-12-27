@@ -186,7 +186,7 @@ def insert_miaoli_energy_summary(datas):
                    
             with Session() as session:
                 #print(len(datas))
-                # for data in datas:  
+                for data in datas:  
                 #     print(data)
                     new_record = models.EnergySummary(
                         total_generation=round(data[1], 2) if data[1] is not None else 0.0,
