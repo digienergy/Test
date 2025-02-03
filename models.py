@@ -71,8 +71,8 @@ class SolarPreprocessData(Base):
     當日發電量 = Column(Float)
     累積發電量 = Column(Float)
     # 狀態與告警
-    狀態1 = Column(Float)
-    告警1 = Column(Float)
+    狀態1 = Column(String)
+    告警1 = Column(String)
     # 其他數據
     內部溫度 = Column(Float)
     絕緣阻抗值 = Column(Float)

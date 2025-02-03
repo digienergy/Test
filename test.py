@@ -212,14 +212,6 @@ def insert_miaoli_energy_summary(datas):
                     )
                     session.add(new_record)
                     session.commit()
-        else:
-            # 使用 with 語法管理 Session
-            with Session() as session:
-                new_record = models.EnergySummary(
-                    timestamp=datetime.now()
-                )
-                session.add(new_record)
-                session.commit()
 
         logging.info("Inserting Miaoli record into EnergySummary")
     except Exception as e:
@@ -273,7 +265,6 @@ def insert_energy_summary(data):
                     standard_coal_saved=data[18] ,
                     co2_reduction=data[19],
                     equivalent_trees=data[20],
-                    timestamp=data[0]
                 )
                 session.add(new_record)
                 session.commit()
@@ -310,7 +301,7 @@ def get_equipment():
                 results.extend(query.first())  # 將結果加入到 results 清單中
         return results
     except Exception as e:
-        logging.debug(f"Error getting equipment data: {e}")
+        logging.debug(f"Error getting {dataloggerSNs} equipment data: {e}")
 
 def miaoli_state_and_alarm(data):
     #reference &*1 or &*8 Inverter fault code Bit on spec.
@@ -379,7 +370,7 @@ def get_miaoli_equipment():
 
         return results
     except Exception as e:
-        logging.debug(f"Error getting equipment data: {e}")
+        logging.debug(f"Error getting 10132230202639 equipment data: {e}")
 
 def state_and_alarm(record_dict):
     alarm = record_dict["alarm1"]
@@ -434,8 +425,8 @@ def insert_equipment(data):
                     "device_type": data[3],
                     "modbus_addr": data[4],
                     "SN": data[5],
-                    "state1": data[6],
-                    "alarm1": data[7],
+                    "state1": int(float(data[6])),
+                    "alarm1": int(float(data[7])),
                 }
                 if record_dict["state1"] == 2:
                     record_dict = state_and_alarm(record_dict)
@@ -444,15 +435,6 @@ def insert_equipment(data):
 
                 session.add(new_record)
                 session.commit()
-
-            else:
-                new_record = models.Equipment(
-                    timestamp=datetime.now()
-                )
-                session.add(new_record)
-                session.commit()
-
-            # 假設 dataloggerSNs 是一組數據
             
             logging.info(f"Inserting into the equipment table")
 
@@ -888,11 +870,6 @@ def insert_energy_monthly(data_list):
                         modbus_addr=data['modbus_addr']
                     )
                     session.add(new_record)
-            else:
-                new_record = models.EnergyMonth(
-                    timestamp=datetime.now()
-                )
-                session.add(new_record)
             
             session.commit()
 
